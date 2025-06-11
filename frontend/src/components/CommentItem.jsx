@@ -38,7 +38,7 @@ const LikeButton = ({ count, onLike, isLiked, disabled }) => {
         onClick={handleLike}
         disabled={disabled || !particlesLoaded}
         sx={{
-          color: isLiked ? "#ED4956" : "text.secondary",
+          color: isLiked ? "#ED4956" : "#1C2526", // Changed to dark gray for better contrast
           "&:hover": { color: "#ED4956" },
         }}
       >
@@ -47,7 +47,7 @@ const LikeButton = ({ count, onLike, isLiked, disabled }) => {
         ) : (
           <PanToolOutlinedIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
         )}
-        <Typography variant="caption" sx={{ ml: 0.5, color: "text.secondary" }}>
+        <Typography variant="caption" sx={{ ml: 0.5, color: "#1C2526" }}>
           {count || 0}
         </Typography>
       </IconButton>
@@ -187,7 +187,7 @@ const CommentItem = ({
             alt={commentUser.username}
             sx={{ width: { xs: 32, sm: 36 }, height: { xs: 32, sm: 36 } }}
           />
-          <Typography variant="caption" color="text.primary" sx={{ fontWeight: "bold" }}>
+          <Typography variant="caption" sx={{ fontWeight: "bold", color: "#000000" }}>
             {commentUser.username}
           </Typography>
         </Box>
@@ -195,7 +195,7 @@ const CommentItem = ({
         {isValidDate && (
           <Typography
             variant="caption"
-            color="text.secondary"
+            sx={{ color: "#1C2526" }} // Dark gray for timestamp
           >
             {`${formatDistanceToNow(new Date(comment.createdAt))} ago${comment.isEdited ? " (Edited)" : ""}`}
           </Typography>
@@ -216,8 +216,8 @@ const CommentItem = ({
                 "& .MuiOutlinedInput-root": {
                   "& fieldset": { borderColor: "rgba(255, 255, 255, 0.3)" },
                   "&:hover fieldset": { borderColor: "rgba(255, 255, 255, 0.5)" },
-                  "&.Mui-focused fieldset": { borderColor: "primary.main" },
-                  "& .MuiInputBase-input": { color: "text.primary" },
+                  "&.Mui-focused fieldset": { borderColor: "#1976D2" }, // Primary color for focus
+                  "& .MuiInputBase-input": { color: "#000000" }, // Black text in TextField
                 },
               }}
             />
@@ -228,8 +228,8 @@ const CommentItem = ({
                 onClick={handleEdit}
                 disabled={!editedText.trim() || isLoading}
                 sx={{
-                  bgcolor: "primary.main",
-                  "&:hover": { bgcolor: "primary.dark" },
+                  bgcolor: "#1976D2", // Primary color
+                  "&:hover": { bgcolor: "#1565C0" },
                 }}
               >
                 {isLoading ? "Saving..." : "Save"}
@@ -241,6 +241,7 @@ const CommentItem = ({
                 disabled={isLoading}
                 sx={{
                   borderColor: "rgba(255, 255, 255, 0.3)",
+                  color: "#000000", // Black text for button
                   "&:hover": { borderColor: "rgba(255, 255, 255, 0.5)", bgcolor: "rgba(255, 255, 255, 0.1)" },
                 }}
               >
@@ -251,8 +252,7 @@ const CommentItem = ({
         ) : (
           <Typography
             variant="body2"
-            color="text.primary"
-            sx={{ wordBreak: "break-word" }}
+            sx={{ wordBreak: "break-word", color: "#000000" }} // Black text for comment
           >
             {comment.text}
           </Typography>
@@ -273,7 +273,7 @@ const CommentItem = ({
                 size="small"
                 onClick={() => setIsEditing(true)}
                 disabled={isLoading}
-                sx={{ color: "primary.main" }}
+                sx={{ color: "#1976D2" }} // Primary color for edit icon
               >
                 <EditIcon sx={{ fontSize: { xs: 16, sm: 18 } }} />
               </IconButton>
@@ -283,7 +283,7 @@ const CommentItem = ({
                 size="small"
                 onClick={handleDelete}
                 disabled={isLoading}
-                sx={{ color: "error.main" }}
+                sx={{ color: "#D32F2F" }} // Error color for delete icon
               >
                 <DeleteForeverIcon sx={{ fontSize: { xs: 16, sm: 18 } }} />
               </IconButton>

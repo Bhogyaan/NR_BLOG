@@ -21,6 +21,8 @@ import {
   bookmarkUnbookmarkPost,
   getSuggestedPosts,
   getPaginatedComments,
+  adminBanPost,
+  adminUnbanPost,
   // sharePost,
   // getBookmarkedUsersCount,
 } from "../controllers/postController.js";
@@ -64,6 +66,9 @@ router.put("/:postId/comment/:commentId/like", protectRoute, likeUnlikeComment);
 router.put("/:id/ban", protectRoute, banPost);      // Fixed route
 router.put("/:id/unban", protectRoute, unbanPost); 
 router.put("/:postId/comment/:commentId", protectRoute, editComment);
+router.put("/posts/ban/:id", protectRoute,adminBanPost);
+router.put("/posts/unban/:id",protectRoute, adminUnbanPost);
+
 
 router.delete("/:id", protectRoute, deletePost);
 router.delete("/:postId/comment/:commentId", protectRoute, deleteComment);

@@ -13,6 +13,10 @@ import {
   Tabs,
   Tab,
   useMediaQuery,
+  Chip,
+  IconButton,
+  Tooltip,
+  Divider,
 } from "@mui/material";
 import { ConfigProvider, App, message } from "antd";
 import userAtom from "../atoms/userAtom";
@@ -24,7 +28,7 @@ import {
   PieChart,
   Pie,
   Cell,
-  Tooltip,
+  Tooltip as ChartTooltip,
   Legend,
   BarChart,
   Bar,
@@ -33,11 +37,17 @@ import {
   LineChart,
   Line,
   CartesianGrid,
-  AreaChart,
-  Area,
   ResponsiveContainer,
 } from "recharts";
-import { Verified as VerifiedIcon } from "@mui/icons-material";
+import { 
+  Verified as VerifiedIcon,
+  Edit,
+  ExitToApp,
+  PersonAdd,
+  PersonRemove,
+  Bookmark,
+  Dashboard,
+} from "@mui/icons-material";
 import Post from "../components/Post";
 import AdminProfilePage from "./AdminProfilePage";
 
@@ -60,12 +70,17 @@ const UserPage = () => {
   const socketContext = useSocket();
   const socket = socketContext?.socket;
 
+  // Redirect admin to AdminProfilePage if viewing their own profile
   if (currentUser?.isAdmin && currentUser?.username === username) {
     return <AdminProfilePage />;
   }
 
   useEffect(() => {
-    console.log("Current user:", currentUser);
+    if (!currentUser) {
+      navigate("/auth");
+      return;
+    }
+
     const getUserAndStats = async () => {
       try {
         let userData;
@@ -74,17 +89,17 @@ const UserPage = () => {
         } else {
           const userRes = await fetch(`/api/users/profile/${username}`, {
             credentials: "include",
+            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
           });
-          const userResponse = await userRes.json();
-          console.log("User profile response:", userResponse);
-          if (!userRes.ok) throw new Error(userResponse.error || "User profile not found");
-          userData = userResponse;
+          if (!userRes.ok) throw new Error("User profile not found");
+          userData = await userRes.json();
         }
 
         let statsData = {};
         try {
           const statsRes = await fetch(`/api/users/stats/${username}`, {
             credentials: "include",
+            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
           });
           statsData = statsRes.ok
             ? await statsRes.json()
@@ -106,16 +121,12 @@ const UserPage = () => {
     const getPosts = async () => {
       try {
         const endpoint = currentUser?.isAdmin ? "/api/posts/all" : `/api/posts/user/${username}`;
-        console.log("Fetching posts from:", endpoint);
         const res = await fetch(endpoint, {
           credentials: "include",
-          headers: {
-            "X-Debug-Cookie": document.cookie || "No cookie sent", // Debug: Log cookie
-          },
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         });
         const data = await res.json();
-        console.log("Posts response:", { status: res.status, data });
-        if (!res.ok) throw new Error(data.error || `HTTP error ${res.status}`);
+        if (data.error) throw new Error(data.error);
         const enrichedPosts = data.map((post) => ({
           ...post,
           postedBy: post.postedBy._id
@@ -124,7 +135,7 @@ const UserPage = () => {
         }));
         setPostsState((prev) => ({ ...prev, posts: enrichedPosts }));
       } catch (error) {
-        console.error("Error fetching posts:", error.message, error.stack);
+        console.error("Error fetching posts:", error.stack);
         message.error(error.message || "Failed to load posts");
       } finally {
         setFetchingPosts(false);
@@ -135,20 +146,20 @@ const UserPage = () => {
       try {
         const res = await fetch(`/api/posts/bookmarks/${username}`, {
           credentials: "include",
-          headers: {
-            "X-Debug-Cookie": document.cookie || "No cookie sent",
-          },
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         });
         const data = await res.json();
-        console.log("Bookmarks response:", { status: res.status, data });
-        if (!res.ok) throw new Error(data.error || `HTTP error ${res.status}`);
-        const enrichedBookmarks = data.map((post) => ({
-          ...post,
-          postedBy: post.postedBy._id
-            ? post.postedBy
-            : { _id: post.postedBy, username: user?.username, profilePic: user?.profilePic },
-        }));
-        setPostsState((prev) => ({ ...prev, bookmarks: enrichedBookmarks || [] }));
+        if (res.ok) {
+          const enrichedBookmarks = data.map((post) => ({
+            ...post,
+            postedBy: post.postedBy._id
+              ? post.postedBy
+              : { _id: post.postedBy, username: user?.username, profilePic: user?.profilePic },
+          }));
+          setPostsState((prev) => ({ ...prev, bookmarks: enrichedBookmarks || [] }));
+        } else {
+          throw new Error(data.error || "Failed to fetch bookmarks");
+        }
       } catch (error) {
         console.error("Error fetching bookmarks:", error.stack);
         message.error(error.message || "Failed to load bookmarks");
@@ -160,12 +171,11 @@ const UserPage = () => {
     getUserAndStats();
     getPosts();
     getBookmarks();
-  }, [username, currentUser, setPostsState, user?.username, user?.profilePic]);
+  }, [username, currentUser, setPostsState, user?.username, user?.profilePic, navigate]);
 
   useEffect(() => {
-    if (!socket) {
-      console.warn("Socket is not initialized in UserPage");
-      message.warning("Real-time updates are unavailable. Please check your connection.");
+    if (!socket || !currentUser) {
+      if (currentUser && !socket) console.warn("Socket is not initialized in UserPage");
       return;
     }
 
@@ -231,7 +241,7 @@ const UserPage = () => {
 
   const handleLogout = () => {
     localStorage.removeItem("user-NRBLOG");
-    document.cookie = "jwt=; Max-Age=0; path=/"; // Clear jwt cookie
+    localStorage.removeItem("token");
     setCurrentUser(null);
     navigate("/auth");
     message.success("Logged out successfully");
@@ -251,6 +261,7 @@ const UserPage = () => {
       const res = await fetch(`/api/users/${action}/${user._id}`, {
         method: "POST",
         credentials: "include",
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
       const data = await res.json();
       if (res.ok) {
@@ -291,7 +302,6 @@ const UserPage = () => {
 
   const barData = user.stats?.activityData || [];
   const lineData = user.stats?.activityData || [];
-  const areaData = user.stats?.activityData || [];
 
   return (
     <ConfigProvider
@@ -306,16 +316,18 @@ const UserPage = () => {
       <App>
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
           <Box sx={{ minHeight: "100vh", p: isSmallScreen ? 1 : 3, pb: isSmallScreen ? 8 : 0, bgcolor: "#1a1a1a" }}>
+            {/* Profile Header Card */}
             <Card
               sx={{
-                mb: 2,
-                pt: 2,
+                mb: 3,
+                p: 2,
                 bgcolor: "background.paper",
                 borderRadius: "12px",
                 border: "1px solid rgba(255, 255, 255, 0.2)",
                 width: "100%",
                 maxWidth: 600,
                 mx: "auto",
+                boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
               }}
             >
               <Box
@@ -323,247 +335,435 @@ const UserPage = () => {
                   display: "flex",
                   alignItems: "center",
                   flexDirection: isSmallScreen ? "column" : "row",
-                  height: "100%",
-                  m: 2,
+                  gap: 2,
                 }}
               >
                 <Avatar
                   src={user.profilePic || undefined}
                   alt={user.username}
                   sx={{
-                    width: isSmallScreen ? 77 : 150,
-                    height: isSmallScreen ? 77 : 150,
+                    width: isSmallScreen ? 80 : 120,
+                    height: isSmallScreen ? 80 : 120,
                     border: "2px solid rgba(255, 255, 255, 0.2)",
-                    mb: isSmallScreen ? 2 : 0,
-                    mr: !isSmallScreen ? 3 : 0,
                   }}
                 />
-                <Box sx={{ flex: 1, textAlign: isSmallScreen ? "center" : "left", overflow: "hidden" }}>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Box
                     sx={{
                       display: "flex",
                       alignItems: "center",
+                      justifyContent: "space-between",
                       mb: 1,
-                      justifyContent: isSmallScreen ? "center" : "flex-start",
-                      flexWrap: "wrap",
                       gap: 1,
                     }}
                   >
-                    <Typography variant="h6" sx={{ fontWeight: 400, mr: 2, color: "text.primary" }}>
-                      {user.username}
-                    </Typography>
-                    {user.isVerified && <VerifiedIcon color="primary" fontSize="small" />}
-                    {currentUser?._id === user._id ? (
-                      <>
-                        <Button
-                          variant="outlined"
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 600, color: "text.primary" }}>
+                        {user.username}
+                      </Typography>
+                      {user.isBanned && (
+                        <Chip
+                          label="Banned"
                           size="small"
-                          onClick={handleEditProfile}
-                          sx={{
-                            mr: 1,
-                            borderRadius: 20,
-                            textTransform: "none",
-                            borderColor: "primary.main",
-                            color: "text.primary",
-                            "&:hover": { bgcolor: "rgba(255, 255, 255, 0.1)" },
-                          }}
-                        >
-                          Edit Profile
-                        </Button>
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          onClick={handleLogout}
-                          sx={{
-                            borderRadius: 20,
-                            textTransform: "none",
-                            borderColor: "primary.main",
-                            color: "text.primary",
-                            "&:hover": { bgcolor: "rgba(255, 255, 255, 0.1)" },
-                          }}
-                        >
-                          Logout
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <Button
-                          variant={following ? "outlined" : "contained"}
-                          size="small"
-                          onClick={handleFollowUnfollow}
-                          disabled={updating}
-                          sx={{
-                            mr: 1,
-                            borderRadius: 20,
-                            textTransform: "none",
-                            bgcolor: following ? "transparent" : "primary.main",
-                            color: "text.primary",
-                            borderColor: following ? "primary.main" : "transparent",
-                            "&:hover": { bgcolor: following ? "rgba(255, 255, 255, 0.1)" : "#6b12cb" },
-                          }}
-                        >
-                          {following ? "Unfollow" : "Follow"}
-                        </Button>
-                        {currentUser?.isAdmin && (
+                          color="error"
+                          sx={{ ml: 1, fontSize: "0.6rem", height: 20 }}
+                        />
+                      )}
+                      {user.isVerified && (
+                        <Tooltip title="Verified">
+                          <VerifiedIcon color="primary" fontSize="small" />
+                        </Tooltip>
+                      )}
+                    </Box>
+                    <Box sx={{ display: "flex", gap: 1 }}>
+                      {!currentUser || !user || currentUser._id === user._id ? (
+                        <>
+                          <Tooltip title="Edit Profile">
+                            <IconButton
+                              onClick={handleEditProfile}
+                              sx={{
+                                color: "text.primary",
+                                bgcolor: "rgba(255, 255, 255, 0.1)",
+                                "&:hover": { bgcolor: "rgba(255, 255, 255, 0.2)" },
+                              }}
+                            >
+                              <Edit fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Logout">
+                            <IconButton
+                              onClick={handleLogout}
+                              sx={{
+                                color: "text.primary",
+                                bgcolor: "rgba(255, 255, 255, 0.1)",
+                                "&:hover": { bgcolor: "rgba(255, 255, 255, 0.2)" },
+                              }}
+                            >
+                              <ExitToApp fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </>
+                      ) : (
+                        <>
                           <Button
-                            variant="outlined"
+                            variant={following ? "outlined" : "contained"}
                             size="small"
-                            onClick={handleBanUnbanUser}
+                            onClick={handleFollowUnfollow}
+                            disabled={updating || user.isBanned}
+                            startIcon={following ? <PersonRemove /> : <PersonAdd />}
                             sx={{
                               borderRadius: 20,
                               textTransform: "none",
-                              borderColor: user.isBanned ? "success.main" : "error.main",
-                              color: user.isBanned ? "success.main" : "error.main",
-                              "&:hover": {
-                                bgcolor: user.isBanned ? "rgba(0, 255, 0, 0.1)" : "rgba(255, 0, 0, 0.1)",
-                              },
+                              bgcolor: following ? "transparent" : "primary.main",
+                              color: following ? "primary.main" : "text.primary",
+                              borderColor: following ? "primary.main" : "transparent",
+                              "&:hover": { bgcolor: following ? "rgba(133, 21, 254, 0.1)" : "#6b12cb" },
                             }}
                           >
-                            {user.isBanned ? "Unban" : "Ban"}
+                            {following ? "Following" : "Follow"}
                           </Button>
-                        )}
-                      </>
-                    )}
+                          {currentUser?.isAdmin && (
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              onClick={handleBanUnbanUser}
+                              sx={{
+                                borderRadius: 20,
+                                textTransform: "none",
+                                borderColor: user.isBanned ? "success.main" : "error.main",
+                                color: user.isBanned ? "success.main" : "error.main",
+                                "&:hover": {
+                                  bgcolor: user.isBanned ? "rgba(0, 255, 0, 0.1)" : "rgba(255, 0, 0, 0.1)",
+                                },
+                              }}
+                            >
+                              {user.isBanned ? "Unban" : "Ban"}
+                            </Button>
+                          )}
+                        </>
+                      )}
+                    </Box>
                   </Box>
+
                   <Box
                     sx={{
                       display: "flex",
-                      gap: isSmallScreen ? 2 : 4,
+                      gap: 2,
                       mb: 2,
                       justifyContent: isSmallScreen ? "center" : "flex-start",
                     }}
                   >
-                    <Card sx={{ p: 1, minWidth: 80, textAlign: "center", bgcolor: "transparent", border: "none" }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: "text.primary" }}>
+                    <Box sx={{ textAlign: "center", minWidth: 60 }}>
+                      <Typography variant="body1" sx={{ fontWeight: 700, color: "text.primary" }}>
                         {postsState.posts.length}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
                         Posts
                       </Typography>
-                    </Card>
-                    <Card sx={{ p: 1, minWidth: 80, textAlign: "center", bgcolor: "transparent", border: "none" }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: "text.primary" }}>
+                    </Box>
+                    <Box sx={{ textAlign: "center", minWidth: 60 }}>
+                      <Typography variant="body1" sx={{ fontWeight: 700, color: "text.primary" }}>
                         {user.followers?.length || 0}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
                         Followers
                       </Typography>
-                    </Card>
-                    <Card sx={{ p: 1, minWidth: 80, textAlign: "center", bgcolor: "transparent", border: "none" }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: "text.primary" }}>
+                    </Box>
+                    <Box sx={{ textAlign: "center", minWidth: 60 }}>
+                      <Typography variant="body1" sx={{ fontWeight: 700, color: "text.primary" }}>
                         {user.following?.length || 0}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
                         Following
                       </Typography>
-                    </Card>
+                    </Box>
                   </Box>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: "text.primary" }}>
-                    {user.name}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ whiteSpace: "pre-wrap", overflow: "hidden", textOverflow: "ellipsis" }}
-                  >
-                    {user.bio}
-                  </Typography>
+
+                  <Box sx={{ mb: 1 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, color: "text.primary" }}>
+                      {user.name}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ whiteSpace: "pre-wrap" }}
+                    >
+                      {user.bio || "No bio yet"}
+                    </Typography>
+                  </Box>
                 </Box>
               </Box>
             </Card>
-            {/* Rest of the JSX remains unchanged */}
+
+            {/* Navigation Tabs */}
             <Box
               sx={{
                 position: "sticky",
                 top: 0,
                 zIndex: 1000,
                 bgcolor: "background.paper",
-                borderBottom: "1px solid rgba(255, 255, 255, 0.2)",
                 borderRadius: "12px",
+                overflowX: "auto",
+                width: "100%",
+                maxWidth: 600,
+                mx: "auto",
+                mb: 2,
+                boxShadow: "0 4px 16px rgba(0, 0, 0, 0.1)",
               }}
             >
               <Tabs
                 value={tabValue}
                 onChange={(e, newValue) => setTabValue(newValue)}
                 variant={isSmallScreen ? "scrollable" : "fullWidth"}
-                scrollButtons={isSmallScreen ? "auto" : "off"}
+                scrollButtons={isSmallScreen ? true : false}
+                allowScrollButtonsMobile
                 sx={{
                   "& .MuiTab-root": {
                     minWidth: isSmallScreen ? "100px" : "auto",
                     padding: isSmallScreen ? "6px 12px" : "12px 16px",
                     color: "text.secondary",
                     "&.Mui-selected": { color: "primary.main" },
+                    whiteSpace: "nowrap",
+                    textTransform: "none",
+                    fontWeight: 600,
                   },
                   "& .MuiTabs-scrollButtons": {
-                    "& .MuiButtonBase-root": {
-                      color: "text.primary",
-                    },
+                    color: "text.primary",
                   },
                 }}
                 TabIndicatorProps={{ style: { backgroundColor: "primary.main" } }}
               >
-                <Tab label="Posts" sx={{ textTransform: "none", fontWeight: 600 }} />
-                <Tab label="Bookmarked Posts" sx={{ textTransform: "none", fontWeight: 600 }} />
-                <Tab label="Followers" sx={{ textTransform: "none", fontWeight: 600 }} />
-                <Tab label="Following" sx={{ textTransform: "none", fontWeight: 600 }} />
+                <Tab label="Posts" />
+                <Tab label="Bookmarks" icon={isSmallScreen ? <Bookmark fontSize="small" /> : null} />
+                <Tab label="Followers" />
+                <Tab label="Following" />
                 {currentUser?._id === user._id && (
-                  <Tab label="Dashboard" sx={{ textTransform: "none", fontWeight: 600 }} />
+                  <Tab label="Dashboard" icon={isSmallScreen ? <Dashboard fontSize="small" /> : null} />
                 )}
               </Tabs>
             </Box>
 
-            <Box sx={{ mt: 2, overflowY: "auto", flex: 1 }}>
+            {/* Tab Content */}
+            <Box sx={{ width: "100%", maxWidth: 600, mx: "auto" }}>
               {tabValue === 0 && (
-                <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   {fetchingPosts ? (
-                    <Card
-                      sx={{
-                        bgcolor: "background.paper",
-                        borderRadius: "12px",
-                        border: "1px solid rgba(255, 255, 255, 0.2)",
-                        width: "100%",
-                        maxWidth: 600,
-                        mx: "auto",
-                      }}
-                    >
-                      <CardContent sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}>
-                        <CircularProgress size={24} sx={{ color: "primary.main" }} />
-                      </CardContent>
-                    </Card>
+                    <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+                      <CircularProgress size={24} sx={{ color: "primary.main" }} />
+                    </Box>
                   ) : postsState.posts.length === 0 ? (
                     <Card
                       sx={{
+                        p: 3,
                         bgcolor: "background.paper",
                         borderRadius: "12px",
                         border: "1px solid rgba(255, 255, 255, 0.2)",
-                        width: "100%",
-                        maxWidth: 600,
-                        mx: "auto",
+                        textAlign: "center",
                       }}
                     >
-                      <CardContent
-                        sx={{ textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", height: "auto" }}
-                      >
-                        <Typography variant="body1" color="text.primary">
-                          No posts yet
-                        </Typography>
-                      </CardContent>
+                      <Typography variant="body1" color="text.primary">
+                        No posts yet
+                      </Typography>
                     </Card>
                   ) : (
                     postsState.posts.map((post) => (
-                      <Box key={post._id} sx={{ width: "100%", maxWidth: 600, pt: 2 }}>
-                        <Post
-                          post={post}
-                          postedBy={post.postedBy}
-                          isAdminView={currentUser?.isAdmin}
-                          onBookmark={handleBookmark}
-                        />
-                      </Box>
+                      <Post
+                        key={post._id}
+                        post={post}
+                        postedBy={post.postedBy}
+                        isAdminView={currentUser?.isAdmin}
+                      />
                     ))
                   )}
                 </Box>
               )}
-              {/* Rest of the tabs (Bookmarked Posts, Followers, Following, Dashboard) remain unchanged */}
+
+              {tabValue === 1 && (
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  {fetchingBookmarks ? (
+                    <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+                      <CircularProgress size={24} sx={{ color: "primary.main" }} />
+                    </Box>
+                  ) : (postsState.bookmarks || []).length === 0 ? (
+                    <Card
+                      sx={{
+                        p: 3,
+                        bgcolor: "background.paper",
+                        borderRadius: "12px",
+                        border: "1px solid rgba(255, 255, 255, 0.2)",
+                        textAlign: "center",
+                      }}
+                    >
+                      <Typography variant="body1" color="text.primary">
+                        No bookmarked posts yet
+                      </Typography>
+                    </Card>
+                  ) : (
+                    (postsState.bookmarks || []).map((post) => (
+                      <Post
+                        key={post._id}
+                        post={post}
+                        postedBy={post.postedBy}
+                        isAdminView={currentUser?.isAdmin}
+                      />
+                    ))
+                  )}
+                </Box>
+              )}
+
+              {tabValue === 2 && (
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  {user.followers?.length === 0 ? (
+                    <Card
+                      sx={{
+                        p: 3,
+                        bgcolor: "background.paper",
+                        borderRadius: "12px",
+                        border: "1px solid rgba(255, 255, 255, 0.2)",
+                        textAlign: "center",
+                      }}
+                    >
+                      <Typography variant="body1" color="text.primary">
+                        No followers yet
+                      </Typography>
+                    </Card>
+                  ) : (
+                    user.followers.map((followerId) => (
+                      <FollowerCard key={followerId} followerId={followerId} navigate={navigate} />
+                    ))
+                  )}
+                </Box>
+              )}
+
+              {tabValue === 3 && (
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  {user.following?.length === 0 ? (
+                    <Card
+                      sx={{
+                        p: 3,
+                        bgcolor: "background.paper",
+                        borderRadius: "12px",
+                        border: "1px solid rgba(255, 255, 255, 0.2)",
+                        textAlign: "center",
+                      }}
+                    >
+                      <Typography variant="body1" color="text.primary">
+                        Not following anyone yet
+                      </Typography>
+                    </Card>
+                  ) : (
+                    user.following.map((followingId) => (
+                      <FollowingCard key={followingId} followingId={followingId} navigate={navigate} />
+                    ))
+                  )}
+                </Box>
+              )}
+
+              {tabValue === 4 && currentUser?._id === user._id && (
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                  <Typography variant="h6" sx={{ color: "text.primary", fontWeight: 600 }}>
+                    Your Activity Dashboard
+                  </Typography>
+
+                  <Card sx={{ p: 2, borderRadius: "12px", bgcolor: "background.paper" }}>
+                    <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
+                      Engagement Overview
+                    </Typography>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <PieChart>
+                        <Pie
+                          data={pieData}
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={isSmallScreen ? 70 : 80}
+                          label
+                        >
+                          {pieData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <ChartTooltip
+                          contentStyle={{
+                            backgroundColor: "background.paper",
+                            borderRadius: 8,
+                            border: "1px solid rgba(255, 255, 255, 0.2)",
+                            color: "text.primary",
+                          }}
+                        />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </Card>
+
+                  <Card sx={{ p: 2, borderRadius: "12px", bgcolor: "background.paper" }}>
+                    <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
+                      Activity Trend
+                    </Typography>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <LineChart data={lineData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.2)" />
+                        <XAxis dataKey="month" stroke="text.secondary" />
+                        <YAxis stroke="text.secondary" />
+                        <ChartTooltip
+                          contentStyle={{
+                            backgroundColor: "background.paper",
+                            borderRadius: 8,
+                            border: "1px solid rgba(255, 255, 255, 0.2)",
+                            color: "text.primary",
+                          }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="likes"
+                          stroke={COLORS[0]}
+                          strokeWidth={2}
+                          activeDot={{ r: 8 }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="posts"
+                          stroke={COLORS[1]}
+                          strokeWidth={2}
+                          activeDot={{ r: 8 }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="comments"
+                          stroke={COLORS[2]}
+                          strokeWidth={2}
+                          activeDot={{ r: 8 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </Card>
+
+                  <Card sx={{ p: 2, borderRadius: "12px", bgcolor: "background.paper" }}>
+                    <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
+                      Activity Breakdown
+                    </Typography>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart data={barData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.2)" />
+                        <XAxis dataKey="month" stroke="text.secondary" />
+                        <YAxis stroke="text.secondary" />
+                        <ChartTooltip
+                          contentStyle={{
+                            backgroundColor: "background.paper",
+                            borderRadius: 8,
+                            border: "1px solid rgba(255, 255, 255, 0.2)",
+                            color: "text.primary",
+                          }}
+                        />
+                        <Bar dataKey="likes" fill={COLORS[0]} radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="posts" fill={COLORS[1]} radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="comments" fill={COLORS[2]} radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </Card>
+                </Box>
+              )}
             </Box>
           </Box>
         </motion.div>
@@ -572,7 +772,6 @@ const UserPage = () => {
   );
 };
 
-// FollowerCard and FollowingCard components remain unchanged
 const FollowerCard = ({ followerId, navigate }) => {
   const [follower, setFollower] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -582,9 +781,9 @@ const FollowerCard = ({ followerId, navigate }) => {
       try {
         const res = await fetch(`/api/users/profile/${followerId}`, {
           credentials: "include",
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         });
         const data = await res.json();
-        console.log("Follower response:", data);
         if (res.ok) {
           setFollower(data);
         } else {
@@ -602,19 +801,10 @@ const FollowerCard = ({ followerId, navigate }) => {
 
   if (loading) {
     return (
-      <Card
-        sx={{
-          bgcolor: "background.paper",
-          borderRadius: "12px",
-          border: "1px solid rgba(255, 255, 255, 0.2)",
-          width: "100%",
-          maxWidth: 500,
-          mx: "auto",
-        }}
-      >
-        <CardContent sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}>
+      <Card sx={{ p: 2, bgcolor: "background.paper", borderRadius: "12px" }}>
+        <Box sx={{ display: "flex", justifyContent: "center" }}>
           <CircularProgress size={24} sx={{ color: "primary.main" }} />
-        </CardContent>
+        </Box>
       </Card>
     );
   }
@@ -624,44 +814,59 @@ const FollowerCard = ({ followerId, navigate }) => {
   return (
     <Card
       sx={{
+        p: 2,
         bgcolor: "background.paper",
         borderRadius: "12px",
         border: "1px solid rgba(255, 255, 255, 0.2)",
+        "&:hover": { boxShadow: "0 4px 12px rgba(133, 21, 254, 0.2)" },
+        transition: "box-shadow 0.3s",
       }}
     >
-      {follower.isBanned && (
-        <Typography
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <Avatar
+          src={follower.profilePic}
           sx={{
-            position: "absolute",
-            top: 8,
-            left: 8,
-            color: "#f44336",
-            fontWeight: 600,
-            bgcolor: "rgba(255,255,255,0.1)",
-            px: 1,
-            py: 0.5,
-            borderRadius: 2,
-            fontSize: "0.75rem",
+            width: 48,
+            height: 48,
+            cursor: "pointer",
+            border: follower.isBanned
+              ? "2px solid #f44336"
+              : follower.isVerified
+              ? "2px solid #8515fe"
+              : "2px solid rgba(255, 255, 255, 0.2)",
           }}
-        >
-          Banned
-        </Typography>
-      )}
-      <CardContent sx={{ display: "flex", alignItems: "center", p: { xs: 1.5, sm: 2 } }}>
-        <Avatar src={follower.profilePic} sx={{ width: 40, height: 40, mr: 2 }} />
-        <Box sx={{ display: "flex", alignItems: "center", flex: 1 }}>
-          <Typography
-            variant="body2"
-            sx={{ fontWeight: 500, color: "text.primary", cursor: "pointer", mr: 1 }}
-            onClick={() => navigate(`/${follower.username}`)}
-          >
-            {follower.username}
-          </Typography>
-          {follower.isVerified && (
-            <VerifiedIcon color="primary" fontSize="small" />
+          onClick={() => navigate(`/${follower.username}`)}
+        />
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography
+              variant="subtitle1"
+              sx={{
+                fontWeight: 600,
+                color: "text.primary",
+                cursor: "pointer",
+                "&:hover": { textDecoration: "underline" },
+              }}
+              onClick={() => navigate(`/${follower.username}`)}
+            >
+              {follower.username}
+            </Typography>
+            {follower.isVerified && (
+              <Tooltip title="Verified">
+                <VerifiedIcon color="primary" fontSize="small" />
+              </Tooltip>
+            )}
+          </Box>
+          {follower.isBanned && (
+            <Chip
+              label="Banned"
+              size="small"
+              color="error"
+              sx={{ ml: 1, fontSize: "0.6rem", height: 20 }}
+            />
           )}
         </Box>
-      </CardContent>
+      </Box>
     </Card>
   );
 };
@@ -675,9 +880,9 @@ const FollowingCard = ({ followingId, navigate }) => {
       try {
         const res = await fetch(`/api/users/profile/${followingId}`, {
           credentials: "include",
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         });
         const data = await res.json();
-        console.log("Following user response:", data);
         if (res.ok) {
           setFollowingUser(data);
         } else {
@@ -695,19 +900,10 @@ const FollowingCard = ({ followingId, navigate }) => {
 
   if (loading) {
     return (
-      <Card
-        sx={{
-          bgcolor: "background.paper",
-          borderRadius: "12px",
-          border: "1px solid rgba(255, 255, 255, 0.2)",
-          width: "100%",
-          maxWidth: 500,
-          mx: "auto",
-        }}
-      >
-        <CardContent sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}>
+      <Card sx={{ p: 2, bgcolor: "background.paper", borderRadius: "12px" }}>
+        <Box sx={{ display: "flex", justifyContent: "center" }}>
           <CircularProgress size={24} sx={{ color: "primary.main" }} />
-        </CardContent>
+        </Box>
       </Card>
     );
   }
@@ -717,44 +913,59 @@ const FollowingCard = ({ followingId, navigate }) => {
   return (
     <Card
       sx={{
+        p: 2,
         bgcolor: "background.paper",
         borderRadius: "12px",
         border: "1px solid rgba(255, 255, 255, 0.2)",
+        "&:hover": { boxShadow: "0 4px 12px rgba(133, 21, 254, 0.2)" },
+        transition: "box-shadow 0.3s",
       }}
     >
-      {followingUser.isBanned && (
-        <Typography
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <Avatar
+          src={followingUser.profilePic}
           sx={{
-            position: "absolute",
-            top: 8,
-            left: 8,
-            color: "#f44336",
-            fontWeight: 600,
-            bgcolor: "rgba(255,255,255,0.1)",
-            px: 1,
-            py: 0.5,
-            borderRadius: 2,
-            fontSize: "0.75rem",
+            width: 48,
+            height: 48,
+            cursor: "pointer",
+            border: followingUser.isBanned
+              ? "2px solid #f44336"
+              : followingUser.isVerified
+              ? "2px solid #8515fe"
+              : "2px solid rgba(255, 255, 255, 0.2)",
           }}
-        >
-          Banned
-        </Typography>
-      )}
-      <CardContent sx={{ display: "flex", alignItems: "center", p: { xs: 1.5, sm: 2 } }}>
-        <Avatar src={followingUser.profilePic} sx={{ width: 40, height: 40, mr: 2 }} />
-        <Box sx={{ display: "flex", alignItems: "center", flex: 1 }}>
-          <Typography
-            variant="body2"
-            sx={{ fontWeight: 500, color: "text.primary", cursor: "pointer", mr: 1 }}
-            onClick={() => navigate(`/${followingUser.username}`)}
-          >
-            {followingUser.username}
-          </Typography>
-          {followingUser.isVerified && (
-            <VerifiedIcon color="primary" fontSize="small" />
+          onClick={() => navigate(`/${followingUser.username}`)}
+        />
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography
+              variant="subtitle1"
+              sx={{
+                fontWeight: 600,
+                color: "text.primary",
+                cursor: "pointer",
+                "&:hover": { textDecoration: "underline" },
+              }}
+              onClick={() => navigate(`/${followingUser.username}`)}
+            >
+              {followingUser.username}
+            </Typography>
+            {followingUser.isVerified && (
+              <Tooltip title="Verified">
+                <VerifiedIcon color="primary" fontSize="small" />
+              </Tooltip>
+            )}
+          </Box>
+          {followingUser.isBanned && (
+            <Chip
+              label="Banned"
+              size="small"
+              color="error"
+              sx={{ ml: 1, fontSize: "0.6rem", height: 20 }}
+            />
           )}
         </Box>
-      </CardContent>
+      </Box>
     </Card>
   );
 };

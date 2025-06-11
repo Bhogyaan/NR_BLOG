@@ -248,29 +248,27 @@ const TopNav = ({ user, sx }) => {
               />
             </IconButton>
           </Tooltip>
-          {!isMediumScreen && (
-            <Tooltip title="Settings">
-              <IconButton
-                component={motion.button}
-                whileHover={{ scale: 1.2 }} // Enhanced hover effect with scale only
-                whileTap={{ scale: 0.9 }}
-                onClick={() => navigate("/settings")}
-                sx={{
-                  color: "white",
-                  p: isMediumScreen ? 1 : 1.5,
-                  borderRadius: "50%", // Curved border
-                  backgroundColor: "rgba(255, 255, 255, 0.1)", // Background color for better visibility
-                  "&:hover": {
-                    backgroundColor: "rgba(255, 255, 255, 0.2)", // Background color on hover
-                    color: "#8515fe", // Active color
-                  },
-                }}
-                aria-label="Settings"
-              >
-                <SettingsIcon fontSize={isMediumScreen ? "small" : "medium"} />
-              </IconButton>
-            </Tooltip>
-          )}
+          <Tooltip title="Settings">
+            <IconButton
+              component={motion.button}
+              whileHover={{ scale: 1.2 }} // Enhanced hover effect with scale only
+              whileTap={{ scale: 0.9 }}
+              onClick={() => navigate("/settings")}
+              sx={{
+                color: "white",
+                p: isMediumScreen ? 1 : 1.5,
+                borderRadius: "50%", // Curved border
+                backgroundColor: "rgba(255, 255, 255, 0.1)", // Background color for better visibility
+                "&:hover": {
+                  backgroundColor: "rgba(255, 255, 255, 0.2)", // Background color on hover
+                  color: "#8515fe", // Active color
+                },
+              }}
+              aria-label="Settings"
+            >
+              <SettingsIcon fontSize={isMediumScreen ? "small" : "medium"} />
+            </IconButton>
+          </Tooltip>
           <Tooltip title="Logout">
             <IconButton
               component={motion.button}

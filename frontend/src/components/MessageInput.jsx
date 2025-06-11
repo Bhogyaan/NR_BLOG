@@ -29,12 +29,18 @@ const MessageInput = () => {
 
     const emitTyping = () => {
       if (!isTyping) {
-        socket.emit("typing", { conversationId: selectedConversation._id, userId: selectedConversation.userId });
+        socket.emit("typing", {
+          conversationId: selectedConversation._id,
+          userId: selectedConversation.userId,
+        });
         setIsTyping(true);
       }
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = setTimeout(() => {
-        socket.emit("stopTyping", { conversationId: selectedConversation._id, userId: selectedConversation.userId });
+        socket.emit("stopTyping", {
+          conversationId: selectedConversation._id,
+          userId: selectedConversation.userId,
+        });
         setIsTyping(false);
       }, 2000);
     };
@@ -42,17 +48,31 @@ const MessageInput = () => {
     if (messageText.trim() || mediaUrl) {
       emitTyping();
     } else if (isTyping) {
-      socket.emit("stopTyping", { conversationId: selectedConversation._id, userId: selectedConversation.userId });
+      socket.emit("stopTyping", {
+        conversationId: selectedConversation._id,
+        userId: selectedConversation.userId,
+      });
       setIsTyping(false);
     }
 
     return () => {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       if (isTyping) {
-        socket.emit("stopTyping", { conversationId: selectedConversation._id, userId: selectedConversation.userId });
+        socket.emit("stopTyping", {
+          conversationId: selectedConversation._id,
+          userId: selectedConversation.userId,
+        });
       }
     };
-  }, [messageText, mediaUrl, selectedConversation._id, selectedConversation.mock, selectedConversation.userId, socket, isTyping]);
+  }, [
+    messageText,
+    mediaUrl,
+    selectedConversation._id,
+    selectedConversation.mock,
+    selectedConversation.userId,
+    socket,
+    isTyping,
+  ]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -99,7 +119,9 @@ const MessageInput = () => {
                     text: messageText.trim() || "Media",
                     sender: { _id: data.sender._id },
                     seen: false,
+                    status: "sent",
                   },
+                  unreadCount: 0,
                 }
               : conv
           )
@@ -119,7 +141,9 @@ const MessageInput = () => {
                     text: messageText.trim() || "Media",
                     sender: { _id: data.sender._id },
                     seen: false,
+                    status: "sent",
                   },
+                  unreadCount: 0,
                 }
               : conv
           )

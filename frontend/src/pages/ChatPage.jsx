@@ -28,134 +28,178 @@ import {
 import userAtom from "../atoms/userAtom";
 import { useSocket } from "../context/SocketContext";
 
-const ConversationItem = React.memo(({ conversation, selectedConversation, setSelectedConversation, onlineUsers }) => (
-  <motion.div
-    key={conversation._id}
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.3 }}
-  >
-    <ListItem
-      sx={{
-        "&:hover": { bgcolor: "#2a2a2a" },
-        py: { xs: 1, sm: 1.5 },
-        cursor: "pointer",
-        bgcolor: selectedConversation._id === conversation._id ? "#333333" : "transparent",
-      }}
-      onClick={() =>
-        setSelectedConversation({
-          _id: conversation._id,
-          userId: conversation.participants[0]._id,
-          username: conversation.participants[0].username,
-          userProfilePic: conversation.participants[0].profilePic,
-          isOnline: onlineUsers.includes(conversation.participants[0]._id),
-          mock: conversation.mock || false,
-        })
-      }
-      role="button"
-      aria-label={`Select chat with ${conversation.participants[0].username}`}
-    >
-      <ListItemAvatar>
-        <Badge
-          color="success"
-          variant="dot"
-          invisible={!onlineUsers.includes(conversation.participants[0]._id)}
+const ConversationItem = React.memo(
+  ({ conversation, selectedConversation, setSelectedConversation, onlineUsers }) => {
+    if (!conversation?.participants?.[0]?._id || !conversation.lastMessage) {
+      console.warn("Invalid conversation skipped:", conversation);
+      return null;
+    }
+
+    return (
+      <motion.div
+        key={conversation._id}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <ListItem
+          sx={{
+            "&:hover": { bgcolor: "#2a2a2a" },
+            py: { xs: 1, sm: 1.2, md: 1.5 },
+            cursor: "pointer",
+            bgcolor:
+              selectedConversation._id === conversation._id ? "#333333" : "transparent",
+          }}
+          onClick={() =>
+            setSelectedConversation({
+              _id: conversation._id,
+              userId: conversation.participants[0]._id,
+              username: conversation.participants[0].username,
+              userProfilePic: conversation.participants[0].profilePic,
+              isOnline: onlineUsers.includes(conversation.participants[0]._id),
+              mock: conversation.mock || false,
+            })
+          }
+          role="button"
+          aria-label={`Select chat with ${conversation.participants[0].username}`}
         >
-          <Avatar
-            src={conversation.participants[0].profilePic}
-            sx={{ width: { xs: 40, sm: 48 }, height: { xs: 40, sm: 48 } }}
+          <ListItemAvatar>
+            <Badge
+              color="success"
+              variant="dot"
+              invisible={!onlineUsers.includes(conversation.participants[0]._id)}
+            >
+              <Avatar
+                src={conversation.participants[0].profilePic}
+                sx={{ width: { xs: 36, sm: 40, md: 48 }, height: { xs: 36, sm: 40, md: 48 } }}
+              />
+            </Badge>
+          </ListItemAvatar>
+          <ListItemText
+            primary={
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    fontSize: { xs: "0.85rem", sm: "0.9rem", md: "1rem" },
+                    fontWeight: conversation.lastMessage.seen ? "normal" : "bold",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {conversation.participants[0].username}
+                </Typography>
+                {conversation.unreadCount > 0 && (
+                  <Badge
+                    badgeContent={conversation.unreadCount}
+                    color="primary"
+                    sx={{ "& .MuiBadge-badge": { bgcolor: "#8515fe" } }}
+                  />
+                )}
+              </Box>
+            }
+            secondary={
+              <Typography
+                noWrap
+                variant="body2"
+                color="#b0b0b0"
+                sx={{
+                  fontSize: { xs: "0.7rem", sm: "0.75rem", md: "0.875rem" },
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {conversation.lastMessage.text || "No messages yet"}{" "}
+                {conversation.lastMessage.seen ? "" : "•"}
+              </Typography>
+            }
           />
-        </Badge>
-      </ListItemAvatar>
-      <ListItemText
-        primary={
-          <Typography
-            variant="body1"
-            sx={{
-              fontSize: { xs: "0.875rem", sm: "1rem" },
-              fontWeight: conversation.lastMessage.seen ? "normal" : "bold",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {conversation.participants[0].username}
-          </Typography>
-        }
-        secondary={
-          <Typography
-            noWrap
-            variant="body2"
-            color="#b0b0b0"
-            sx={{
-              fontSize: { xs: "0.75rem", sm: "0.875rem" },
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {conversation.lastMessage.text || "No messages yet"} {conversation.lastMessage.seen ? "" : "•"}
-          </Typography>
-        }
-      />
-    </ListItem>
-  </motion.div>
-));
+        </ListItem>
+      </motion.div>
+    );
+  }
+);
 
 const ChatPage = () => {
   const [searchingUser, setSearchingUser] = useState(false);
   const [loadingConversations, setLoadingConversations] = useState(true);
   const [searchText, setSearchText] = useState("");
-  const [selectedConversation, setSelectedConversation] = useRecoilState(selectedConversationAtom);
+  const [selectedConversation, setSelectedConversation] =
+    useRecoilState(selectedConversationAtom);
   const [conversations, setConversations] = useRecoilState(conversationsAtom);
   const currentUser = useRecoilValue(userAtom);
   const { socket, onlineUsers } = useSocket();
   const isSmall = useMediaQuery("(max-width:600px)");
+  const isMedium = useMediaQuery("(min-width:601px) and (max-width:960px)");
   const [notification, setNotification] = useState(null);
 
   useEffect(() => {
-    if (!socket) return;
+    if (!socket) {
+      console.warn("Socket not initialized");
+      return;
+    }
 
     socket.emit("joinConversation", { conversationId: selectedConversation._id });
 
     const handleNewMessage = (message) => {
+      console.log("Received newMessage:", message);
       setConversations((prev) => {
         const exists = prev.find((c) => c._id === message.conversationId);
-        if (exists) {
-          return prev.map((conversation) =>
-            conversation._id === message.conversationId
-              ? {
-                  ...conversation,
-                  lastMessage: {
-                    text: message.text || "Media",
-                    sender: message.sender,
-                    seen: message.sender._id === currentUser._id,
-                  },
-                }
-              : conversation
-          );
-        }
-        return [
-          {
-            _id: message.conversationId,
-            participants: [
-              {
-                _id: message.sender._id,
-                username: message.sender.username,
-                profilePic: message.sender.profilePic,
+        let updatedConversations = prev.map((conversation) =>
+          conversation._id === message.conversationId
+            ? {
+                ...conversation,
+                lastMessage: {
+                  text: message.text || "Media",
+                  sender: message.sender,
+                  seen: message.sender._id === currentUser._id,
+                  status: message.sender._id === currentUser._id ? "sent" : "delivered",
+                },
+                unreadCount:
+                  message.sender._id !== currentUser._id &&
+                  message.conversationId !== selectedConversation._id
+                    ? (conversation.unreadCount || 0) + 1
+                    : conversation.unreadCount || 0,
+                updatedAt: new Date(message.createdAt || Date.now()),
+              }
+            : conversation
+        );
+
+        if (!exists) {
+          updatedConversations = [
+            {
+              _id: message.conversationId,
+              participants: [
+                {
+                  _id: message.sender._id,
+                  username: message.sender.username,
+                  profilePic: message.sender.profilePic,
+                },
+              ],
+              lastMessage: {
+                text: message.text || "Media",
+                sender: message.sender,
+                seen: message.sender._id === currentUser._id,
+                status: message.sender._id === currentUser._id ? "sent" : "delivered",
               },
-            ],
-            lastMessage: {
-              text: message.text || "Media",
-              sender: message.sender,
-              seen: message.sender._id === currentUser._id,
+              unreadCount: message.sender._id !== currentUser._id ? 1 : 0,
+              mock: false,
+              updatedAt: new Date(message.createdAt || Date.now()),
             },
-            mock: false,
-          },
-          ...prev,
-        ];
+            ...updatedConversations,
+          ];
+        }
+
+        return updatedConversations.sort(
+          (a, b) => new Date(b.updatedAt || Date.now()) - new Date(a.updatedAt || Date.now())
+        );
       });
 
-      if (message.sender._id !== currentUser._id && !selectedConversation._id) {
+      if (
+        message.sender._id !== currentUser._id &&
+        !selectedConversation._id
+      ) {
         setSelectedConversation({
           _id: message.conversationId,
           userId: message.sender._id,
@@ -167,7 +211,38 @@ const ChatPage = () => {
       }
     };
 
+    const handleUpdateConversation = ({ conversationId, lastMessage }) => {
+      console.log("Received updateConversation:", { conversationId, lastMessage });
+      setConversations((prev) =>
+        prev
+          .map((conversation) =>
+            conversation._id === conversationId
+              ? {
+                  ...conversation,
+                  lastMessage: {
+                    ...lastMessage,
+                    sender:
+                      typeof lastMessage.sender === "string"
+                        ? { _id: lastMessage.sender }
+                        : lastMessage.sender,
+                    seen: lastMessage.seen || false,
+                    status: lastMessage.status || "sent",
+                  },
+                  unreadCount:
+                    lastMessage.sender._id !== currentUser._id &&
+                    conversationId !== selectedConversation._id
+                      ? (conversation.unreadCount || 0) + 1
+                      : conversation.unreadCount || 0,
+                  updatedAt: new Date(lastMessage.updatedAt || Date.now()),
+                }
+              : conversation
+          )
+          .sort((a, b) => new Date(b.updatedAt || Date.now()) - new Date(a.updatedAt || Date.now()))
+      );
+    };
+
     const handleNewMessageNotification = (notif) => {
+      console.log("Received newMessageNotification:", notif);
       if (notif.conversationId !== selectedConversation._id) {
         setNotification({
           message: `New message from ${notif.sender.username}`,
@@ -177,31 +252,54 @@ const ChatPage = () => {
     };
 
     const handleMessagesSeen = ({ conversationId }) => {
+      console.log("Received messagesSeen:", { conversationId });
       setConversations((prev) =>
-        prev.map((conversation) =>
-          conversation._id === conversationId
-            ? { ...conversation, lastMessage: { ...conversation.lastMessage, seen: true } }
-            : conversation
-        )
+        prev
+          .map((conversation) =>
+            conversation._id === conversationId
+              ? {
+                  ...conversation,
+                  lastMessage: { ...conversation.lastMessage, seen: true, status: "seen" },
+                  unreadCount: 0,
+                  updatedAt: new Date(),
+                }
+              : conversation
+          )
+          .sort((a, b) => new Date(b.updatedAt || Date.now()) - new Date(a.updatedAt || Date.now()))
       );
     };
 
     socket.on("newMessage", handleNewMessage);
-    socket.on("newMessageNotification", handleNewMessageNotification);
+    socket.on("updateConversation", handleUpdateConversation);
+    socket.on("newMessageReceived", handleNewMessageNotification);
     socket.on("messagesSeen", handleMessagesSeen);
 
     return () => {
       socket.off("newMessage", handleNewMessage);
-      socket.off("newMessageNotification", handleNewMessageNotification);
+      socket.off("updateConversation", handleUpdateConversation);
+      socket.off("newMessageReceived", handleNewMessageNotification);
       socket.off("messagesSeen", handleMessagesSeen);
       socket.emit("leaveConversation", { conversationId: selectedConversation._id });
     };
-  }, [socket, setConversations, currentUser._id, selectedConversation._id, setSelectedConversation, onlineUsers]);
+  }, [
+    socket,
+    setConversations,
+    currentUser._id,
+    selectedConversation._id,
+    setSelectedConversation,
+    onlineUsers,
+  ]);
 
   useEffect(() => {
     const getConversations = async () => {
       try {
-        const res = await fetch("/api/messages/conversations", { credentials: "include" });
+        setLoadingConversations(true);
+        const res = await fetch("/api/messages/conversations", {
+          credentials: "include",
+        });
+        if (!res.ok) {
+          throw new Error(`Failed to fetch conversations: ${res.status}`);
+        }
         const data = await res.json();
         if (data.error) {
           message.error(data.error);
@@ -210,9 +308,12 @@ const ChatPage = () => {
         const validConversations = data.filter(
           (conv) => conv.participants?.[0]?._id && conv.lastMessage
         );
-        setConversations(validConversations);
+        setConversations(validConversations.sort(
+          (a, b) => new Date(b.updatedAt || Date.now()) - new Date(a.updatedAt || Date.now())
+        ));
       } catch (error) {
-        message.error(error.message);
+        console.error("Get conversations error:", error);
+        message.error("Failed to load chats");
       } finally {
         setLoadingConversations(false);
       }
@@ -230,15 +331,20 @@ const ChatPage = () => {
         isOnline: false,
         mock: false,
       });
+      if (socket) {
+        socket.emit("leaveConversation", { conversationId: selectedConversation._id });
+      }
     };
-  }, [setSelectedConversation]);
+  }, [socket, setSelectedConversation]);
 
-  const handleConversationSearch = async (e) => {
+  const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchText.trim()) return;
     setSearchingUser(true);
     try {
-      const res = await fetch(`/api/users/profile/${searchText}`, { credentials: "include" });
+      const res = await fetch(`/api/users/profile/${searchText}`, {
+        credentials: "include",
+      });
       const searchedUser = await res.json();
       if (searchedUser.error) {
         message.error(searchedUser.error);
@@ -273,6 +379,8 @@ const ChatPage = () => {
             profilePic: searchedUser.profilePic,
           },
         ],
+        unreadCount: 0,
+        updatedAt: new Date(),
       };
       setConversations((prevConvs) => [...prevConvs, mockConversation]);
       setSelectedConversation({
@@ -284,7 +392,8 @@ const ChatPage = () => {
         mock: true,
       });
     } catch (error) {
-      message.error(error.message);
+      console.error("Search error:", error);
+      message.error("Failed to search user");
     } finally {
       setSearchingUser(false);
       setSearchText("");
@@ -323,7 +432,8 @@ const ChatPage = () => {
     setNotification(null);
   };
 
-  const navHeight = isSmall ? 56 : 64;
+  const navHeight = isSmall ? 56 : isMedium ? 60 : 64;
+  const conversationListWidth = isSmall ? "100%" : isMedium ? "400px" : "600px";
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
@@ -333,7 +443,12 @@ const ChatPage = () => {
         onClose={handleCloseNotification}
         message={notification?.message}
         action={
-          <IconButton size="small" aria-label="view" color="inherit" onClick={handleNotificationClick}>
+          <IconButton
+            size="small"
+            aria-label="view"
+            color="inherit"
+            onClick={handleNotificationClick}
+          >
             <Typography variant="body2">View</Typography>
           </IconButton>
         }
@@ -351,7 +466,7 @@ const ChatPage = () => {
       >
         <Box
           sx={{
-            width: isSmall ? "100%" : "600px",
+            width: conversationListWidth,
             height: isSmall ? "auto" : `calc(100vh - ${navHeight}px)`,
             display: isSmall && selectedConversation._id ? "none" : "flex",
             flexDirection: "column",
@@ -362,7 +477,7 @@ const ChatPage = () => {
         >
           <Box
             sx={{
-              p: 2,
+              p: { xs: 1.5, sm: 2, md: 2.5 },
               bgcolor: "#8515fe",
               color: "white",
               display: "flex",
@@ -371,12 +486,16 @@ const ChatPage = () => {
               flexShrink: 0,
             }}
           >
-            <Typography variant="h6" fontWeight="bold" sx={{ fontSize: { xs: "1rem", sm: "1.25rem" } }}>
+            <Typography
+              variant="h6"
+              fontWeight="bold"
+              sx={{ fontSize: { xs: "0.9rem", sm: "1rem", md: "1.25rem" } }}
+            >
               Chats
             </Typography>
           </Box>
-          <Box sx={{ p: 2, flexShrink: 0 }}>
-            <form onSubmit={handleConversationSearch}>
+          <Box sx={{ p: { xs: 1.5, sm: 2, md: 2.5 }, flexShrink: 0 }}>
+            <form onSubmit={handleSearch}>
               <TextField
                 fullWidth
                 size="small"
@@ -395,6 +514,7 @@ const ChatPage = () => {
                     borderRadius: 20,
                     "& fieldset": { border: "none" },
                     color: "#8515fe",
+                    "& input": { fontSize: { xs: "0.85rem", sm: "0.9rem", md: "1rem" } },
                   },
                 }}
                 sx={{ bgcolor: "#2e2e2e", borderRadius: 20 }}
@@ -402,13 +522,34 @@ const ChatPage = () => {
               />
             </form>
           </Box>
-          <Box sx={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
+          <Box
+            sx={{
+              flex: 1,
+              overflowY: "auto",
+              overflowX: "hidden",
+              "&::-webkit-scrollbar": {
+                width: "6px",
+              },
+              "&::-webkit-scrollbar-thumb": {
+                backgroundColor: "#A9A9A9",
+                borderRadius: "3px",
+              },
+              "@supports (-moz-appearance:none)": {
+                scrollbarWidth: "thin",
+                scrollbarColor: "#A9A9A9 transparent",
+              },
+            }}
+          >
             {loadingConversations ? (
               <List>
                 {[0, 1, 2, 3].map((_, i) => (
-                  <ListItem key={i} sx={{ py: 1 }}>
+                  <ListItem key={i} sx={{ py: { xs: 0.8, sm: 1, md: 1.2 } }}>
                     <ListItemAvatar>
-                      <Skeleton variant="circular" width={40} height={40} />
+                      <Skeleton
+                        variant="circular"
+                        width={isSmall ? 36 : isMedium ? 40 : 48}
+                        height={isSmall ? 36 : isMedium ? 40 : 48}
+                      />
                     </ListItemAvatar>
                     <ListItemText
                       primary={<Skeleton variant="text" width="60%" />}
@@ -417,6 +558,15 @@ const ChatPage = () => {
                   </ListItem>
                 ))}
               </List>
+            ) : conversations.length === 0 ? (
+              <Box sx={{ p: 2, textAlign: "center" }}>
+                <Typography
+                  color="#b0b0b0"
+                  sx={{ fontSize: { xs: "0.85rem", sm: "0.9rem", md: "1rem" } }}
+                >
+                  No chats found. Search for users to start a conversation.
+                </Typography>
+              </Box>
             ) : (
               <List>
                 {conversations.map((conversation) => (
@@ -446,7 +596,7 @@ const ChatPage = () => {
             {isSmall && (
               <Box
                 sx={{
-                  p: 1,
+                  p: { xs: 1, sm: 1.5 },
                   bgcolor: "#8515fe",
                   color: "white",
                   display: "flex",
@@ -455,7 +605,11 @@ const ChatPage = () => {
                   height: "56px",
                 }}
               >
-                <IconButton onClick={handleBack} sx={{ color: "white" }} aria-label="Back to chat list">
+                <IconButton
+                  onClick={handleBack}
+                  sx={{ color: "white" }}
+                  aria-label="Back to chat list"
+                >
                   <ArrowBack />
                 </IconButton>
                 <Badge
@@ -469,8 +623,12 @@ const ChatPage = () => {
                     sx={{ width: 32, height: 32 }}
                   />
                 </Badge>
-                <Typography variant="h6" sx={{ fontSize: { xs: "1rem", sm: "1.25rem" } }}>
-                  {selectedConversation.username} {selectedConversation.isOnline ? "(Online)" : ""}
+                <Typography
+                  variant="h6"
+                  sx={{ fontSize: { xs: "0.9rem", sm: "1rem", md: "1.25rem" } }}
+                >
+                  {selectedConversation.username}{" "}
+                  {selectedConversation.isOnline ? "(Online)" : ""}
                 </Typography>
               </Box>
             )}
@@ -481,12 +639,12 @@ const ChatPage = () => {
                 overflowX: "hidden",
                 display: "flex",
                 flexDirection: "column",
-                p: 2,
+                p: { xs: 1.5, sm: 2, md: 2.5 },
               }}
             >
               <MessageContainer userId={selectedConversation.userId} />
             </Box>
-            <Box sx={{ p: 2, flexShrink: 0 }}>
+            <Box sx={{ p: { xs: 1.5, sm: 2, md: 2.5 }, flexShrink: 0 }}>
               <MessageInput />
             </Box>
           </Box>
@@ -501,7 +659,10 @@ const ChatPage = () => {
               height: `calc(100vh - ${navHeight}px)`,
             }}
           >
-            <Typography color="#8515fe" sx={{ fontSize: { xs: "1rem", sm: "1.25rem" } }}>
+            <Typography
+              color="#8515fe"
+              sx={{ fontSize: { xs: "0.9rem", sm: "1rem", md: "1.25rem" } }}
+            >
               Select a chat to start messaging
             </Typography>
           </Box>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRecoilState, useRecoilValue } from "recoil";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -6,6 +6,7 @@ import { useTheme } from "@mui/material/styles";
 import {
   Avatar,
   Box,
+  Button,
   IconButton,
   TextField,
   Typography,
@@ -15,9 +16,7 @@ import {
   Modal,
   Drawer,
   LinearProgress,
-  Button,
   Chip,
-  InputAdornment,
   List,
   ListItem,
   ListItemAvatar,
@@ -30,10 +29,10 @@ import {
   Send as SendIcon,
   LocationOn as LocationIcon,
   Close as CloseIcon,
-  Search as SearchIcon,
-  MoreVert,
 } from "@mui/icons-material";
 import { Upload, message } from "antd";
+import { Document, Page, pdfjs } from "react-pdf";
+import { BsFileEarmarkTextFill, BsFileZipFill, BsFiletypePdf } from "react-icons/bs";
 import postsAtom from "../atoms/postsAtom";
 import userAtom from "../atoms/userAtom";
 import { conversationsAtom, selectedConversationAtom } from "../atoms/messagesAtom";
@@ -45,7 +44,36 @@ import MessageContainer from "../components/MessageContainer";
 import useShowToast from "../hooks/useShowToast";
 import { useSocket } from "../context/SocketContext";
 
+pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+
 const { Dragger } = Upload;
+
+const MAX_CHAR = 500;
+const MAX_FILE_SIZE = {
+  document: 2 * 1024 * 1024 * 1024, // 2GB
+  image: 16 * 1024 * 1024, // 16MB
+  video: 16 * 1024 * 1024, // 16MB
+  audio: 16 * 1024 * 1024, // 16MB
+};
+
+const SUPPORTED_FORMATS = {
+  image: ["image/jpeg", "image/png", "image/gif", "image/heic"],
+  video: ["video/mp4", "video/x-matroska", "video/avi", "video/3gpp", "video/quicktime"],
+  audio: ["audio/mpeg", "audio/aac", "audio/x-m4a", "audio/opus", "audio/wav"],
+  document: [
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "text/plain",
+    "application/rtf",
+    "application/zip",
+    "application/x-zip-compressed",
+  ],
+};
 
 const HomePage = () => {
   const [postsState, setPostsState] = useRecoilState(postsAtom);
@@ -58,8 +86,10 @@ const HomePage = () => {
   const [text, setText] = useState("");
   const [media, setMedia] = useState(null);
   const [mediaType, setMediaType] = useState("");
+  const [numPages, setNumPages] = useState(null);
   const [isPosting, setIsPosting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [remainingChar, setRemainingChar] = useState(MAX_CHAR);
   const navigate = useNavigate();
   const showToast = useShowToast();
   const [modalOpen, setModalOpen] = useState(false);
@@ -67,6 +97,8 @@ const HomePage = () => {
   const [selectedConversation, setSelectedConversation] = useRecoilState(selectedConversationAtom);
   const [conversations, setConversations] = useRecoilState(conversationsAtom);
   const { socket, onlineUsers } = useSocket();
+  const theme = useTheme();
+  const imageRef = useRef(null);
 
   const fetchPosts = useCallback(async () => {
     if (!user) {
@@ -203,48 +235,74 @@ const HomePage = () => {
     getConversations();
   }, [setConversations, showToast]);
 
+  const getSupportedFormatsMessage = () => {
+    const formatLists = Object.entries(SUPPORTED_FORMATS).map(([type, formats]) => {
+      const extensions = formats.map((fmt) => fmt.split("/")[1].toUpperCase()).join(", ");
+      return `${type.charAt(0).toUpperCase() + type.slice(1)}: ${extensions}`;
+    });
+    return formatLists.join("; ");
+  };
+
+  const validateFile = (file) => {
+    if (!file) return true;
+
+    const fileType = file.type;
+    const detectedMediaType = Object.keys(SUPPORTED_FORMATS).find((key) =>
+      SUPPORTED_FORMATS[key].includes(fileType)
+    );
+
+    if (!detectedMediaType) {
+      showToast("Error", `Unsupported file format. Supported formats: ${getSupportedFormatsMessage()}`, "error");
+      return false;
+    }
+
+    if (file.size > MAX_FILE_SIZE[detectedMediaType]) {
+      const maxSizeMB = MAX_FILE_SIZE[detectedMediaType] / (1024 * 1024);
+      const message =
+        detectedMediaType === "document"
+          ? `Please upload within 2GB document.`
+          : `Please upload within ${maxSizeMB}MB ${detectedMediaType} files.`;
+      showToast("Error", `${message} Supported formats: ${getSupportedFormatsMessage()}`, "error");
+      return false;
+    }
+
+    setMediaType(detectedMediaType);
+    return true;
+  };
+
   const handleMediaChange = (info) => {
     const { file } = info;
     if (file.status === "removed") {
       setMedia(null);
       setMediaType("");
+      setNumPages(null);
       return;
     }
 
-    const validImageTypes = ["image/jpeg", "image/png", "image/gif", "image/heic"];
-    const validVideoTypes = ["video/mp4", "video/x-matroska", "video/avi", "video/3gpp", "video/quicktime"];
-    const validAudioTypes = ["audio/mpeg", "audio/aac", "audio/x-m4a", "audio/opus", "audio/wav"];
-    const validDocTypes = [
-      "application/pdf",
-      "application/x-pdf",
-      "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "application/vnd.ms-excel",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "application/vnd.ms-powerpoint",
-      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-      "text/plain",
-      "application/rtf",
-      "application/zip",
-      "application/x-zip-compressed",
-      "application/octet-stream",
-    ];
-
-    if (validImageTypes.includes(file.type)) setMediaType("image");
-    else if (validVideoTypes.includes(file.type)) setMediaType("video");
-    else if (validAudioTypes.includes(file.type)) setMediaType("audio");
-    else if (validDocTypes.includes(file.type)) setMediaType("document");
-    else {
-      showToast("Error", "Unsupported file type", "error");
-      return;
-    }
-
-    if (file.size > (validDocTypes.includes(file.type) ? 2 * 1024 * 1024 * 1024 : 16 * 1024 * 1024)) {
-      showToast("Error", `File size exceeds limit (${validDocTypes.includes(file.type) ? "2GB" : "16MB"})`, "error");
+    if (!validateFile(file)) {
+      setMedia(null);
+      setMediaType("");
+      setNumPages(null);
       return;
     }
 
     setMedia(file);
+    setNumPages(null);
+  };
+
+  const handleTextChange = (e) => {
+    const inputText = e.target.value;
+    if (inputText.length > MAX_CHAR) {
+      setText(inputText.slice(0, MAX_CHAR));
+      setRemainingChar(0);
+    } else {
+      setText(inputText);
+      setRemainingChar(MAX_CHAR - inputText.length);
+    }
+  };
+
+  const onDocumentLoadSuccess = ({ numPages }) => {
+    setNumPages(numPages);
   };
 
   const handleCreatePost = async () => {
@@ -268,44 +326,66 @@ const HomePage = () => {
       formData.append("mediaType", mediaType);
     }
 
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/posts/create", true);
-    xhr.setRequestHeader("Authorization", `Bearer ${localStorage.getItem("token")}`);
+    try {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "/api/posts/create", true);
+      xhr.setRequestHeader("Authorization", `Bearer ${localStorage.getItem("token")}`);
 
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable) setUploadProgress(Math.round((event.loaded / event.total) * 100));
-    };
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          setUploadProgress(Math.round((event.loaded / event.total) * 100));
+        }
+      };
 
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        const data = JSON.parse(xhr.responseText);
-        setPostsState((prev) => ({ ...prev, posts: [data, ...(prev.posts || [])] }));
-        setText("");
-        setMedia(null);
-        setMediaType("");
-        showToast("Success", "Post created successfully", "success");
-        setModalOpen(false);
-      } else {
-        showToast("Error", JSON.parse(xhr.responseText).error || "Server error occurred", "error");
-      }
-      setIsPosting(false);
-      setUploadProgress(100);
-    };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          const data = JSON.parse(xhr.responseText);
+          setPostsState((prev) => ({
+            ...prev,
+            posts: [data, ...(prev.posts || [])],
+          }));
+          setText("");
+          setMedia(null);
+          setMediaType("");
+          setNumPages(null);
+          showToast("Success", "Post created successfully", "success");
+          setModalOpen(false);
+          if (socket) {
+            socket.emit("newPost", data);
+          }
+        } else {
+          showToast("Error", JSON.parse(xhr.responseText).error || "Server error occurred", "error");
+        }
+        setIsPosting(false);
+      };
 
-    xhr.onerror = () => {
-      showToast("Error", "An unexpected error occurred", "error");
+      xhr.onerror = () => {
+        showToast("Error", "An unexpected error occurred", "error");
+        setIsPosting(false);
+        setUploadProgress(0);
+      };
+
+      xhr.send(formData);
+    } catch (error) {
+      showToast("Error", `Failed to create post: ${error.message}`, "error");
       setIsPosting(false);
       setUploadProgress(0);
-    };
+    }
+  };
 
-    xhr.send(formData);
+  const renderDocumentIcon = (fileType) => {
+    if (fileType === "application/pdf") {
+      return <BsFiletypePdf size={24} />;
+    } else if (fileType === "application/zip" || fileType === "application/x-zip-compressed") {
+      return <BsFileZipFill size={24} />;
+    } else {
+      return <BsFileEarmarkTextFill size={24} />;
+    }
   };
 
   const ChatFeature = () => {
     const [followingDetails, setFollowingDetails] = useState({});
     const [error, setError] = useState(null);
-    const { socket, onlineUsers } = useSocket();
-    const theme = useTheme();
 
     useEffect(() => {
       const fetchFollowingDetails = async () => {
@@ -485,12 +565,12 @@ const HomePage = () => {
                   <Skeleton variant="circular" width={40} height={40} />
                   <Box sx={{ ml: 1 }}>
                     <Skeleton variant="text" width={100} />
-                    <Skeleton variant="text" width={80} />
+                    <Skeleton variant="text" width="0.8em" />
                   </Box>
                 </Box>
                 <Skeleton variant="rectangular" height={200} />
                 <Skeleton variant="text" width="80%" />
-                <Skeleton variant="text" width="60%" />
+                <Skeleton variant="text" width="0.9em" />
               </Box>
             </motion.div>
           ))}
@@ -500,9 +580,9 @@ const HomePage = () => {
 
     if (fetchError) {
       return (
-        <Box sx={{ textAlign: "center", my: 2 }}>
+        <Box sx={{ textAlign: "center", my: "2em" }}>
           <Typography color="error">Failed to load posts: {fetchError}</Typography>
-          <Button onClick={fetchPosts} variant="outlined" sx={{ mt: 1 }}>
+          <Button onClick={fetchPosts} color="primary" sx={{ marginTop: "1rem" }} variant="outlined">
             Retry
           </Button>
         </Box>
@@ -511,8 +591,8 @@ const HomePage = () => {
 
     if (!postsState.posts?.length) {
       return (
-        <Typography variant="h6" textAlign="center" sx={{ my: 2 }}>
-          No posts available.
+        <Typography variant="h6" align="center" sx={{ marginTop: "2rem" }}>
+          No posts available
         </Typography>
       );
     }
@@ -522,7 +602,7 @@ const HomePage = () => {
       content.push(
         <motion.div
           key={post._id}
-          initial={{ y: 20, opacity: 0 }}
+          initial={{ y: "1.5rem", opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.3 }}
         >
@@ -540,11 +620,11 @@ const HomePage = () => {
           <motion.div
             key="suggested-users"
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1}}
+            animate={{ opacity: 1 }}
             transition={{ duration: 0.5 }}
             style={{ marginTop: index === 0 ? "16px" : "0" }}
           >
-            <Box sx={{ py: 2 }}>
+            <Box sx={{ padding: "2rem 0" }}>
               <SuggestedUsers />
             </Box>
           </motion.div>
@@ -552,12 +632,263 @@ const HomePage = () => {
       }
     });
 
-    return <Box sx={{ display: "flex", flexDirection: "column", pt: 3 }}>{content}</Box>;
+    return <Box sx={{ display: "flex", flexDirection: "column", paddingTop: "1rem" }}>{content}</Box>;
   };
+
+  const renderCreatePostModal = () => (
+    <Modal open={modalOpen} onClose={() => setModalOpen(false)}>
+      <Box
+        sx={{
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          width: isMediumScreen ? 400 : 500,
+          bgcolor: "background.paper",
+          p: 2,
+          borderRadius: 2,
+          maxHeight: "90vh",
+          overflowY: "auto",
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+          <LocationIcon color="primary" sx={{ mr: 1 }} />
+          <Typography variant="h6">Create Post</Typography>
+          <IconButton sx={{ ml: "auto" }} onClick={() => setModalOpen(false)}>
+            <CloseIcon />
+          </IconButton>
+        </Box>
+        <TextField
+          fullWidth
+          multiline
+          rows={4}
+          placeholder="Type your post..."
+          value={text}
+          onChange={handleTextChange}
+          sx={{ my: 1 }}
+        />
+        <Typography variant="caption" color="textSecondary" sx={{ display: "block", mb: 2 }}>
+          {remainingChar} characters remaining
+        </Typography>
+        <Box textAlign="center" mb={2}>
+          <Button
+            variant="outlined"
+            startIcon={<AttachFileIcon />}
+            onClick={() => imageRef.current.click()}
+          >
+            Upload Media
+          </Button>
+          <input
+            type="file"
+            hidden
+            ref={imageRef}
+            onChange={(e) => handleMediaChange({ file: e.target.files[0] })}
+            accept={Object.values(SUPPORTED_FORMATS).flat().join(",")}
+          />
+        </Box>
+        <Typography variant="caption" color="textSecondary" sx={{ display: "block", textAlign: "center", mb: 2 }}>
+          Supported formats: Images (JPEG, PNG, GIF, HEIC); Videos (MP4, MKV, AVI, 3GP, MOV); Audio (MP3, AAC, M4A, OPUS, WAV); Documents (PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, RTF, ZIP). Max sizes: Images/Videos/Audio 16MB, Documents 2GB.
+        </Typography>
+        {media && (
+          <Box mb={3} position="relative">
+            <Typography variant="subtitle2" gutterBottom>
+              Selected: {media.name} ({(media.size / 1024 / 1024).toFixed(2)}MB)
+            </Typography>
+            <Box border={1} borderColor="divider" borderRadius={2} p={2}>
+              {mediaType === "image" && (
+                <img
+                  src={URL.createObjectURL(media)}
+                  alt="Preview"
+                  style={{ maxWidth: "100%", maxHeight: "400px", objectFit: "contain" }}
+                />
+              )}
+              {mediaType === "video" && (
+                <video
+                  controls
+                  src={URL.createObjectURL(media)}
+                  style={{ maxWidth: "100%", maxHeight: "400px" }}
+                />
+              )}
+              {mediaType === "audio" && (
+                <audio controls src={URL.createObjectURL(media)} style={{ width: "100%" }} />
+              )}
+              {mediaType === "document" && (
+                <Box>
+                  <Box display="flex" alignItems="center" gap={1} mb={2}>
+                    {renderDocumentIcon(media.type)}
+                    <Typography variant="body1">{media.name}</Typography>
+                  </Box>
+                  {media.type === "application/pdf" && (
+                    <Box height="400px" overflow="auto">
+                      <Document file={URL.createObjectURL(media)} onLoadSuccess={onDocumentLoadSuccess}>
+                        {Array.from({ length: numPages || 1 }, (_, i) => (
+                          <Page key={`page_${i + 1}`} pageNumber={i + 1} width={450} />
+                        ))}
+                      </Document>
+                    </Box>
+                  )}
+                </Box>
+              )}
+              <IconButton
+                onClick={() => {
+                  setMedia(null);
+                  setMediaType("");
+                  setNumPages(null);
+                }}
+                sx={{ position: "absolute", top: 8, right: 8 }}
+              >
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          </Box>
+        )}
+        {isPosting && (
+          <Box sx={{ mt: 1 }}>
+            <LinearProgress variant="determinate" value={uploadProgress} />
+            <Typography variant="caption" display="block" textAlign="right">
+              {uploadProgress}%
+            </Typography>
+          </Box>
+        )}
+        <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-end" }}>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleCreatePost}
+            disabled={isPosting}
+            endIcon={<SendIcon />}
+          >
+            Post
+          </Button>
+        </Box>
+      </Box>
+    </Modal>
+  );
+
+  const renderCreatePostDrawer = () => (
+    <Drawer
+      anchor="bottom"
+      open={modalOpen}
+      onClose={() => setModalOpen(false)}
+      PaperProps={{ sx: { borderTopLeftRadius: 16, borderTopRightRadius: 16, p: 1 } }}
+    >
+      <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+        <LocationIcon color="primary" sx={{ mr: 1 }} />
+        <Typography variant="h6">Create Post</Typography>
+        <IconButton sx={{ ml: "auto" }} onClick={() => setModalOpen(false)}>
+          <CloseIcon />
+        </IconButton>
+      </Box>
+      <TextField
+        fullWidth
+        multiline
+        rows={3}
+        placeholder="Type your post..."
+        value={text}
+        onChange={handleTextChange}
+        sx={{ my: 1 }}
+      />
+      <Typography variant="caption" color="textSecondary" sx={{ display: "block", mb: 2 }}>
+        {remainingChar} characters remaining
+      </Typography>
+      <Box textAlign="center" mb={2}>
+        <Button
+          variant="outlined"
+          startIcon={<AttachFileIcon />}
+          onClick={() => imageRef.current.click()}
+        >
+          Upload Media
+        </Button>
+        <input
+          type="file"
+          hidden
+          ref={imageRef}
+          onChange={(e) => handleMediaChange({ file: e.target.files[0] })}
+          accept={Object.values(SUPPORTED_FORMATS).flat().join(",")}
+        />
+      </Box>
+      <Typography variant="caption" color="textSecondary" sx={{ display: "block", textAlign: "center", mb: 2 }}>
+        Supported formats: Images (JPEG, PNG, GIF, HEIC); Videos (MP4, MKV, AVI, 3GP, MOV); Audio (MP3, AAC, M4A, OPUS, WAV); Documents (PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, RTF, ZIP). Max sizes: Images/Videos/Audio 16MB, Documents 2GB.
+      </Typography>
+      {media && (
+        <Box mb={3} position="relative">
+          <Typography variant="subtitle2" gutterBottom>
+            Selected: {media.name.substring(0, 15)}... ({(media.size / 1024 / 1024).toFixed(2)}MB)
+          </Typography>
+          <Box border={1} borderColor="divider" borderRadius={2} p={2}>
+            {mediaType === "image" && (
+              <img
+                src={URL.createObjectURL(media)}
+                alt="Preview"
+                style={{ maxWidth: "100%", maxHeight: "300px", objectFit: "contain" }}
+              />
+            )}
+            {mediaType === "video" && (
+              <video
+                controls
+                src={URL.createObjectURL(media)}
+                style={{ maxWidth: "100%", maxHeight: "300px" }}
+              />
+            )}
+            {mediaType === "audio" && (
+              <audio controls src={URL.createObjectURL(media)} style={{ width: "100%" }} />
+            )}
+            {mediaType === "document" && (
+              <Box>
+                <Box display="flex" alignItems="center" gap={1} mb={2}>
+                  {renderDocumentIcon(media.type)}
+                  <Typography variant="body1">{media.name}</Typography>
+                </Box>
+                {media.type === "application/pdf" && (
+                  <Box height="300px" overflow="auto">
+                    <Document file={URL.createObjectURL(media)} onLoadSuccess={onDocumentLoadSuccess}>
+                      {Array.from({ length: numPages || 1 }, (_, i) => (
+                        <Page key={`page_${i + 1}`} pageNumber={i + 1} width={300} />
+                      ))}
+                    </Document>
+                  </Box>
+                )}
+              </Box>
+            )}
+            <IconButton
+              onClick={() => {
+                setMedia(null);
+                setMediaType("");
+                setNumPages(null);
+              }}
+              sx={{ position: "absolute", top: 8, right: 8 }}
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Box>
+        </Box>
+      )}
+      {isPosting && (
+        <Box sx={{ mt: 1 }}>
+          <LinearProgress variant="determinate" value={uploadProgress} />
+          <Typography variant="caption" display="block" textAlign="right">
+            {uploadProgress}%
+          </Typography>
+        </Box>
+      )}
+      <Box sx={{ mt: 1, display: "flex", justifyContent: "flex-end" }}>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleCreatePost}
+          disabled={isPosting}
+          endIcon={<SendIcon />}
+          size="small"
+        >
+          Post
+        </Button>
+      </Box>
+    </Drawer>
+  );
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
-      <Box sx={{ pb: isSmallScreen ? 8 : 0 }}>
+      <Box sx={{ paddingBottom: isSmallScreen ? 8 : 0 }}>
         {isLargeScreen && (
           <Box
             sx={{
@@ -582,11 +913,11 @@ const HomePage = () => {
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ duration: 0.5 }}
                 >
-                  <Box sx={{ display: "flex", gap: 1, overflowX: "auto", py: 1 }}>
+                  {/* <Box sx={{ display: "flex", gap: 1, overflowX: "auto", py: 1 }}>
                     {postsState.stories.map((story) => (
                       <Story key={story._id} story={story} />
                     ))}
-                  </Box>
+                  </Box> */}
                 </motion.div>
               )}
               {renderPostsWithSuggestedUsers()}
@@ -631,11 +962,11 @@ const HomePage = () => {
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ duration: 0.5 }}
                 >
-                  <Box sx={{ display: "flex", gap: 1, overflowX: "auto", py: 1 }}>
+                  {/* <Box sx={{ display: "flex", gap: 1, overflowX: "auto", py: 1 }}>
                     {postsState.stories.map((story) => (
                       <Story key={story._id} story={story} />
                     ))}
-                  </Box>
+                  </Box> */}
                 </motion.div>
               )}
               {renderPostsWithSuggestedUsers()}
@@ -672,11 +1003,11 @@ const HomePage = () => {
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ duration: 0.5 }}
               >
-                <Box sx={{ display: "flex", gap: 1, overflowX: "auto", py: 1 }}>
+                {/* <Box sx={{ display: "flex", gap: 1, overflowX: "auto", py: 1 }}>
                   {postsState.stories.map((story) => (
                     <Story key={story._id} story={story} />
                   ))}
-                </Box>
+                </Box> */}
               </motion.div>
             )}
             {selectedConversation._id ? (
@@ -688,184 +1019,41 @@ const HomePage = () => {
         )}
 
         {(isMediumScreen || isLargeScreen) && (
-          <motion.div
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.95 }}
-            style={{ position: "fixed", bottom: 16, right: 16 }}
-          >
-            <IconButton
-              color="primary"
-              aria-label="Create Post"
-              onClick={() => setModalOpen(true)}
-              sx={{
-                width: 56,
-                height: 56,
-                boxShadow: 3,
-                bgcolor: "primary.main",
-                color: "white",
-                "&:hover": { bgcolor: "primary.dark" },
-              }}
+          <>
+            <motion.div
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              style={{ position: "fixed", bottom: 16, right: 16 }}
             >
-              <AddIcon />
-            </IconButton>
-          </motion.div>
-        )}
-
-        {(isMediumScreen || isLargeScreen) && (
-          <Modal open={modalOpen} onClose={() => setModalOpen(false)}>
-            <Box
-              sx={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                width: isMediumScreen ? 400 : 500,
-                bgcolor: "background.paper",
-                p: 2,
-                borderRadius: 2,
-              }}
-            >
-              <Box sx={{ display: "flex", alignItems: "center" }}>
-                <LocationIcon color="primary" sx={{ mr: 1 }} />
-                <Typography variant="h6">Create Post</Typography>
-                <IconButton sx={{ ml: "auto" }} onClick={() => setModalOpen(false)}>
-                  <CloseIcon />
-                </IconButton>
-              </Box>
-              <TextField
-                fullWidth
-                multiline
-                rows={4}
-                placeholder="Type your post..."
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                sx={{ my: 1 }}
-              />
-              <Dragger
-                name="media"
-                multiple={false}
-                showUploadList={false}
-                beforeUpload={() => false}
-                onChange={handleMediaChange}
-                accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.rtf,.zip,.odt,.ods,.odp"
+              <IconButton
+                color="primary"
+                aria-label="Create Post"
+                onClick={() => setModalOpen(true)}
+                sx={{
+                  width: 56,
+                  height: 56,
+                  boxShadow: 3,
+                  bgcolor: "primary.main",
+                  color: "white",
+                  "&:hover": { bgcolor: "primary.dark" },
+                }}
               >
-                <Box sx={{ p: 1, textAlign: "center" }}>
-                  <AttachFileIcon sx={{ fontSize: 40 }} />
-                  <Typography>Click or drag file to upload</Typography>
-                </Box>
-              </Dragger>
-              {media && (
-                <Box sx={{ mt: 1, display: "flex", alignItems: "center" }}>
-                  <Chip
-                    label={`${media.name} (${Math.round(media.size / 1024)} KB, ${mediaType})`}
-                    onDelete={() => {
-                      setMedia(null);
-                      setMediaType("");
-                    }}
-                    sx={{ mr: 1 }}
-                  />
-                </Box>
-              )}
-              {isPosting && (
-                <Box sx={{ mt: 1 }}>
-                  <LinearProgress variant="determinate" value={uploadProgress} />
-                  <Typography variant="caption" display="block" textAlign="right">
-                    {uploadProgress}%
-                  </Typography>
-                </Box>
-              )}
-              <Box sx={{ mt: 1, display: "flex", justifyContent: "flex-end" }}>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={handleCreatePost}
-                  disabled={isPosting}
-                  endIcon={<SendIcon />}
-                >
-                  Post
-                </Button>
-              </Box>
-            </Box>
-          </Modal>
+                <AddIcon />
+              </IconButton>
+            </motion.div>
+            {renderCreatePostModal()}
+          </>
         )}
 
         {isSmallScreen && (
-          <Drawer
-            anchor="bottom"
-            open={modalOpen}
-            onClose={() => setModalOpen(false)}
-            PaperProps={{ sx: { borderTopLeftRadius: 16, borderTopRightRadius: 16, p: 1 } }}
-          >
-            <Box sx={{ display: "flex", alignItems: "center" }}>
-              <LocationIcon color="primary" sx={{ mr: 1 }} />
-              <Typography variant="h6">Create Post</Typography>
-              <IconButton sx={{ ml: "auto" }} onClick={() => setModalOpen(false)}>
-                <CloseIcon />
-              </IconButton>
-            </Box>
-            <TextField
-              fullWidth
-              multiline
-              rows={3}
-              placeholder="Type your post..."
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              sx={{ my: 1 }}
-            />
-            <Dragger
-              name="media"
-              multiple={false}
-              showUploadList={false}
-              beforeUpload={() => false}
-              onChange={handleMediaChange}
-              accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.rtf,.zip,.odt,.ods,.odp"
-            >
-              <Box sx={{ p: 1, textAlign: "center" }}>
-                <AttachFileIcon sx={{ fontSize: 30 }} />
-                <Typography variant="body2">Click or drag file to upload</Typography>
-              </Box>
-            </Dragger>
-            {media && (
-              <Box sx={{ mt: 1, display: "flex", alignItems: "center" }}>
-                <Chip
-                  label={`${media.name.substring(0, 15)}... (${Math.round(media.size / 1024)} KB)`}
-                  onDelete={() => {
-                    setMedia(null);
-                    setMediaType("");
-                  }}
-                  sx={{ mr: 1 }}
-                />
-              </Box>
-            )}
-            {isPosting && (
-              <Box sx={{ mt: 1 }}>
-                <LinearProgress variant="determinate" value={uploadProgress} />
-                <Typography variant="caption" display="block" textAlign="right">
-                  {uploadProgress}%
-                </Typography>
-              </Box>
-            )}
-            <Box sx={{ mt: 1, display: "flex", justifyContent: "flex-end" }}>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={handleCreatePost}
-                disabled={isPosting}
-                endIcon={<SendIcon />}
-                size="small"
-              >
-                Post
-              </Button>
-            </Box>
-          </Drawer>
+          <>
+            {renderCreatePostDrawer()}
+            <BottomNav user={user} />
+          </>
         )}
       </Box>
-      {isSmallScreen && <BottomNav user={user} />}
     </motion.div>
   );
 };
 
 export default HomePage;
-
-
-

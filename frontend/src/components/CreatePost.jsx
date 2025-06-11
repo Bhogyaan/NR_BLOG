@@ -119,7 +119,7 @@ const CreatePost = ({ isOpen, onClose, onPostCreated }) => {
       const extensions = formats.map((fmt) => fmt.split("/")[1].toUpperCase()).join(", ");
       return `${type.charAt(0).toUpperCase() + type.slice(1)}: ${extensions}`;
     });
-    return `Supported formats: ${formatLists.join("; ")}.`;
+    return formatLists.join("; ");
   };
 
   const validateFile = (file) => {
@@ -133,7 +133,7 @@ const CreatePost = ({ isOpen, onClose, onPostCreated }) => {
     if (!detectedMediaType) {
       setNotification({
         open: true,
-        message: `Unsupported file format. ${getSupportedFormatsMessage()}`,
+        message: `Unsupported file format. Supported formats: ${getSupportedFormatsMessage()}`,
         severity: "error",
       });
       return false;
@@ -147,7 +147,7 @@ const CreatePost = ({ isOpen, onClose, onPostCreated }) => {
           : `Please upload within ${maxSizeMB}MB ${detectedMediaType} files.`;
       setNotification({
         open: true,
-        message: `${message} ${getSupportedFormatsMessage()}`,
+        message: `${message} Supported formats: ${getSupportedFormatsMessage()}`,
         severity: "error",
       });
       return false;
@@ -340,142 +340,140 @@ const CreatePost = ({ isOpen, onClose, onPostCreated }) => {
           </Alert>
         </Snackbar>
 
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-            <Typography variant="h6">Create {postType === "post" ? "Post" : "Story"}</Typography>
-            <IconButton onClick={onClose}>
-              <CloseIcon />
-            </IconButton>
-          </Box>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+  <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+    <Typography variant="h6">Create Post</Typography>
+    <IconButton onClick={onClose}>
+      <CloseIcon />
+    </IconButton>
+  </Box>
 
-          <Select
-            value={postType}
-            onChange={(e) => setPostType(e.target.value)}
-            fullWidth
-            sx={{ mb: 2 }}
-          >
-            <MenuItem value="post">Post</MenuItem>
-            <MenuItem value="story">Story</MenuItem>
-          </Select>
+  <TextareaAutosize
+    placeholder="Write your post..."
+    onChange={handleTextChange}
+    value={postText}
+    minRows={4}
+    style={{
+      width: "100%",
+      padding: "12px",
+      border: "1px solid #ddd",
+      borderRadius: "8px",
+      marginBottom: "12px",
+      fontSize: "16px",
+    }}
+  />
+  <Typography variant="caption" color="textSecondary" mb={2}>
+    {remainingChar} characters remaining
+  </Typography>
 
-          <TextareaAutosize
-            placeholder="Write your post..."
-            onChange={handleTextChange}
-            value={postText}
-            minRows={4}
-            style={{
-              width: "100%",
-              padding: "12px",
-              border: "1px solid #ddd",
-              borderRadius: "8px",
-              marginBottom: "12px",
-              fontSize: "16px",
-            }}
+  <input
+    type="file"
+    hidden
+    ref={imageRef}
+    onChange={handleFileChange}
+    accept={Object.values(SUPPORTED_FORMATS).flat().join(",")}
+  />
+
+  <Box textAlign="center" mb={2}>
+    <Button
+      variant="outlined"
+      startIcon={<UploadIcon />}
+      onClick={() => imageRef.current.click()}
+    >
+      Upload Media
+    </Button>
+  </Box>
+
+  <Typography
+    variant="caption"
+    color="textSecondary"
+    mb={2}
+    sx={{ display: "block", textAlign: "center" }}
+  >
+    Supported formats: Images (JPEG, PNG, GIF, HEIC); Videos (MP4, MKV, AVI, 3GP, MOV);
+    Audio (MP3, AAC, M4A, OPUS, WAV, OGG); Documents (PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, RTF, ZIP). 
+    Max sizes: Images/Videos/Audio 16MB, Documents 2GB.
+  </Typography>
+
+  {mediaFile && (
+    <Box mb={3} position="relative">
+      <Typography variant="subtitle2" gutterBottom>
+        Selected: {mediaFile.name} ({(mediaFile.size / 1024 / 1024).toFixed(2)}MB)
+      </Typography>
+
+      <Box border={1} borderColor="divider" borderRadius={2} p={2}>
+        {mediaType === "image" && (
+          <img
+            src={URL.createObjectURL(mediaFile)}
+            alt="Preview"
+            style={{ maxWidth: "100%", maxHeight: "400px", objectFit: "contain" }}
           />
-          <Typography variant="caption" color="textSecondary" mb={2}>
-            {remainingChar} characters remaining
-          </Typography>
+        )}
 
-          <input
-            type="file"
-            hidden
-            ref={imageRef}
-            onChange={handleFileChange}
-            accept={Object.values(SUPPORTED_FORMATS).flat().join(",")}
+        {mediaType === "video" && (
+          <video
+            controls
+            src={URL.createObjectURL(mediaFile)}
+            style={{ maxWidth: "100%", maxHeight: "400px" }}
           />
+        )}
 
-          <Box textAlign="center" mb={2}>
-            <Button
-              variant="outlined"
-              startIcon={<UploadIcon />}
-              onClick={() => imageRef.current.click()}
-            >
-              Upload Media
-            </Button>
-          </Box>
+        {mediaType === "audio" && (
+          <audio controls src={URL.createObjectURL(mediaFile)} style={{ width: "100%" }} />
+        )}
 
-          {mediaFile && (
-            <Box mb={3}>
-              <Typography variant="subtitle2" gutterBottom>
-                Selected: {mediaFile.name} ({(mediaFile.size / 1024 / 1024).toFixed(2)}MB)
-              </Typography>
+        {mediaType === "document" && (
+          <Box>
+            <Box display="flex" alignItems="center" gap={1} mb={2}>
+              {renderDocumentIcon(mediaFile.type)}
+              <Typography variant="body1">{mediaFile.name}</Typography>
+            </Box>
 
-              <Box border={1} borderColor="divider" borderRadius={2} p={2}>
-                {mediaType === "image" && (
-                  <img
-                    src={URL.createObjectURL(mediaFile)}
-                    alt="Preview"
-                    style={{ maxWidth: "100%", maxHeight: "400px", objectFit: "contain" }}
-                  />
-                )}
-
-                {mediaType === "video" && (
-                  <video
-                    controls
-                    src={URL.createObjectURL(mediaFile)}
-                    style={{ maxWidth: "100%", maxHeight: "400px" }}
-                  />
-                )}
-
-                {mediaType === "audio" && (
-                  <audio controls src={URL.createObjectURL(mediaFile)} style={{ width: "100%" }} />
-                )}
-
-                {mediaType === "document" && (
-                  <Box>
-                    <Box display="flex" alignItems="center" gap={1} mb={2}>
-                      {renderDocumentIcon(mediaFile.type)}
-                      <Typography variant="body1">{mediaFile.name}</Typography>
-                    </Box>
-
-                    {mediaFile.type === "application/pdf" && (
-                      <Box height="400px" overflow="auto">
-                        <Document
-                          file={URL.createObjectURL(mediaFile)}
-                          onLoadSuccess={onDocumentLoadSuccess}
-                        >
-                          {Array.from({ length: numPages || 1 }, (_, i) => (
-                            <Page key={`page_${i + 1}`} pageNumber={i + 1} width={500} />
-                          ))}
-                        </Document>
-                      </Box>
-                    )}
-                  </Box>
-                )}
-
-                <IconButton
-                  onClick={() => setMediaFile(null)}
-                  sx={{ position: "absolute", mt: 1, right: 8 }}
+            {mediaFile.type === "application/pdf" && (
+              <Box height="400px" overflow="auto">
+                <Document
+                  file={URL.createObjectURL(mediaFile)}
+                  onLoadSuccess={onDocumentLoadSuccess}
                 >
-                  <CloseIcon fontSize="small" />
-                </IconButton>
+                  {Array.from({ length: numPages || 1 }, (_, i) => (
+                    <Page key={`page_${i + 1}`} pageNumber={i + 1} width={500} />
+                  ))}
+                </Document>
               </Box>
-            </Box>
-          )}
-
-          {loading && (
-            <Box mb={2}>
-              <LinearProgress variant="determinate" value={uploadProgress} sx={{ mb: 1 }} />
-              <Typography variant="caption">
-                Uploading: {uploadProgress}% ({uploadSpeed} KB/s)
-              </Typography>
-            </Box>
-          )}
-
-          <Button
-            fullWidth
-            variant="contained"
-            color="primary"
-            onClick={handleCreatePost}
-            disabled={loading || (!postText.trim() && !mediaFile)}
-          >
-            {loading ? (
-              <CircularProgress size={24} color="inherit" />
-            ) : (
-              `Post ${postType === "story" ? "Story" : ""}`
             )}
-          </Button>
-        </motion.div>
+          </Box>
+        )}
+
+        <IconButton
+          onClick={() => setMediaFile(null)}
+          sx={{ position: "absolute", top: 8, right: 8 }}
+        >
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </Box>
+    </Box>
+  )}
+
+  {loading && (
+    <Box mb={2}>
+      <LinearProgress variant="determinate" value={uploadProgress} sx={{ mb: 1 }} />
+      <Typography variant="caption">
+        Uploading: {uploadProgress}% ({uploadSpeed} KB/s)
+      </Typography>
+    </Box>
+  )}
+
+  <Button
+    fullWidth
+    variant="contained"
+    color="primary"
+    onClick={handleCreatePost}
+    disabled={loading || (!postText.trim() && !mediaFile)}
+  >
+    {loading ? <CircularProgress size={24} color="inherit" /> : "Post"}
+  </Button>
+</motion.div>
+
       </Box>
     </Modal>
   );

@@ -47,18 +47,18 @@ const MessageContainer = ({ userId }) => {
           "Cache-Control": "no-cache",
         },
       });
-      
+
       if (!res.ok) {
         const errorText = await res.text();
         throw new Error(`Failed to fetch messages: ${res.status} ${errorText}`);
       }
-      
+
       const data = await res.json();
       if (data.error) {
         showToast("Error", data.error, "error");
         return;
       }
-      
+
       setMessages(data);
       if (data.length > 0) {
         setConversationId(data[0].conversationId);
@@ -104,14 +104,20 @@ const MessageContainer = ({ userId }) => {
             const newMessages = [...prev];
             newMessages[existingIndex] = {
               ...newMessages[existingIndex],
-              ...message
+              ...message,
             };
             return newMessages;
           }
-          return [...prev, {
-            ...message,
-            status: message.sender._id === currentUser._id ? message.status || "sent" : "received"
-          }];
+          return [
+            ...prev,
+            {
+              ...message,
+              status:
+                message.sender._id === currentUser._id
+                  ? message.status || "sent"
+                  : "received",
+            },
+          ];
         });
 
         if (!conversationId) setConversationId(message.conversationId);
@@ -189,7 +195,14 @@ const MessageContainer = ({ userId }) => {
       socket.emit("leaveConversation", { conversationId: selectedConversation._id });
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     };
-  }, [socket, userId, currentUser._id, selectedConversation._id, selectedConversation.mock, conversationId]);
+  }, [
+    socket,
+    userId,
+    currentUser._id,
+    selectedConversation._id,
+    selectedConversation.mock,
+    conversationId,
+  ]);
 
   const dotVariants = {
     animate: {
@@ -259,7 +272,7 @@ const MessageContainer = ({ userId }) => {
               </motion.div>
             ))}
           </AnimatePresence>
-          
+
           {isTyping && (
             <Box
               sx={{

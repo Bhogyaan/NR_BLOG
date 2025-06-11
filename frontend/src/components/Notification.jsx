@@ -21,7 +21,13 @@ const Notification = () => {
     socket.on(
       "newMessageNotification",
       ({ conversationId, sender, text, img, messageId }) => {
-        console.log("Received newMessageNotification:", { conversationId, sender, text, img, messageId });
+        console.log("Received newMessageNotification:", {
+          conversationId,
+          sender,
+          text,
+          img,
+          messageId,
+        });
         const isViewingChat =
           selectedConversation._id === conversationId ||
           (sender._id === selectedConversation.userId &&

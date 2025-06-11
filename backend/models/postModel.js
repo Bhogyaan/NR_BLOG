@@ -37,7 +37,8 @@ const postSchema = new mongoose.Schema({
   },
   bannedAt: { type: Date },
   createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date }
+  updatedAt: { type: Date },
+  // Note: 'shares' field is not defined but referenced in getAdminRealtimeDashboard. Currently returns 0.
 }, {
   toJSON: { virtuals: true },
   toObject: { virtuals: true },
@@ -60,9 +61,9 @@ postSchema.virtual('bannedByUser', {
 
 postSchema.index({ postedBy: 1 });
 postSchema.index({ createdAt: -1 });
-postSchema.index({ likes: 1 });
+postSchema.index({ likes: -1 }); // Changed to -1 for descending order, as likes are often queried in descending order
 postSchema.index({ 'comments._id': 1 });
 
 const Post = mongoose.model("Post", postSchema);
 
-export { Post };
+export  { Post };

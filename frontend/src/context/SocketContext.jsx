@@ -82,21 +82,21 @@ export const SocketContextProvider = ({ children }) => {
       }
     });
 
-     socketInstance.on("commentAdded", (data) => {
-    console.log("New comment received:", data);
-  });
+    socketInstance.on("commentAdded", (data) => {
+      console.log("New comment received:", data);
+    });
 
-  socketInstance.on("commentUpdated", (data) => {
-    console.log("Comment updated:", data);
-  });
+    socketInstance.on("commentUpdated", (data) => {
+      console.log("Comment updated:", data);
+    });
 
-  socketInstance.on("commentDeleted", (data) => {
-    console.log("Comment deleted:", data);
-  });
+    socketInstance.on("commentDeleted", (data) => {
+      console.log("Comment deleted:", data);
+    });
 
-  socketInstance.on("commentLiked", (data) => {
-    console.log("Comment liked:", data);
-  });
+    socketInstance.on("commentLiked", (data) => {
+      console.log("Comment liked:", data);
+    });
 
     const pingInterval = setInterval(() => {
       if (socketInstance.connected) {
@@ -106,16 +106,20 @@ export const SocketContextProvider = ({ children }) => {
 
     return () => {
       clearInterval(pingInterval);
-      if (socketInstance) {
-        socketInstance.off("connect");
-        socketInstance.off("getOnlineUsers");
-        socketInstance.off("connect_error");
-        socketInstance.off("reconnect");
-        socketInstance.off("reconnect_attempt");
-        socketInstance.off("reconnect_failed");
-        socketInstance.off("disconnect");
-        socketInstance.disconnect();
-      }
+      socketInstance.off("connect");
+      socketInstance.off("getOnlineUsers");
+      socketInstance.off("connect_error");
+      socketInstance.off("reconnect");
+      socketInstance.off("reconnect_attempt");
+      socketInstance.off("reconnect_failed");
+      socketInstance.off("disconnect");
+      socketInstance.off("commentAdded");
+      socketInstance.off("commentUpdated");
+      socketInstance.off("commentDeleted");
+      socketInstance.off("commentLiked");
+      socketInstance.disconnect();
+      setSocket(null);
+      setConnectionStatus("disconnected");
     };
   }, [user?._id, serverUrl]);
 

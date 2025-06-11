@@ -2,7 +2,7 @@ import { Post } from "../models/postModel.js";
 import Story from "../models/storyModel.js";
 import User from "../models/userModel.js";
 import { v2 as cloudinary } from "cloudinary";
-import fs from "fs";
+import fs from "fs/promises"; // Updated to use promises for async file operations
 import sanitizeHtml from "sanitize-html";
 
 const SUPPORTED_FORMATS = {
@@ -11,7 +11,7 @@ const SUPPORTED_FORMATS = {
   audio: ["audio/mpeg", "audio/aac", "audio/x-m4a", "audio/opus", "audio/wav", "audio/ogg", "audio/mp3"],
   document: [
     "application/pdf",
-    "application/msword",
+    "application/vnd.msword",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/vnd.ms-excel",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -39,8 +39,8 @@ const uploadToCloudinary = async (filePath, options) => {
     console.error("uploadToCloudinary: Failed", { message: error.message, stack: error.stack });
     throw new Error(`Cloudinary upload failed: ${error.message}`);
   } finally {
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath); // Clean up temporary file
+    if (await fs.exists(filePath)) {
+      await fs.unlink(filePath); // Clean up temporary file using promises
     }
   }
 };
@@ -172,10 +172,12 @@ const createPost = async (req, res) => {
       req.io.to(`post:${newPost._id}`).emit("newFeedPost", populatedPost);
     }
 
+    await emitAnalyticsUpdate(req.io);
+
     res.status(201).json(populatedPost);
   } catch (err) {
     console.error("createPost: Error", { message: err.message, stack: err.stack, postedBy: req.body.postedBy });
-    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    if (req.file && await fs.exists(req.file.path)) await fs.unlink(req.file.path);
     res.status(500).json({ error: `Failed to create post: ${err.message}` });
   }
 };
@@ -208,7 +210,7 @@ const createStory = async (req, res) => {
     }
 
     const uploadOptions = {
-      resource_type: mediaType === "video" || mediaType === "audio" ? "video" : "image",
+      resource_type: (mediaType === "video" || mediaType === "audio") ? "video" : "image",
       folder: "stories",
     };
 
@@ -241,7 +243,7 @@ const createStory = async (req, res) => {
     res.status(201).json(newStory);
   } catch (err) {
     console.error("createStory: Error", { message: err.message, stack: err.stack });
-    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    if (req.file && await fs.exists(req.file.path)) await fs.unlink(req.file.path);
     res.status(500).json({ error: `Failed to create story: ${err.message}` });
   }
 };
@@ -275,6 +277,8 @@ const deletePost = async (req, res) => {
     if (req.io) {
       req.io.to(`post:${req.params.id}`).emit("postDeleted", { postId: req.params.id, userId: post.postedBy });
     }
+
+    await emitAnalyticsUpdate(req.io);
 
     res.status(200).json({ message: "Post deleted successfully" });
   } catch (err) {
@@ -343,6 +347,8 @@ const editPost = async (req, res) => {
       req.io.to(`post:${postId}`).emit("postUpdated", populatedPost);
     }
 
+    await emitAnalyticsUpdate(req.io);
+
     res.status(200).json(populatedPost);
   } catch (err) {
     console.error("editPost: Error", { message: err.message, stack: err.stack, postId: req.params.id });
@@ -359,7 +365,7 @@ const getPost = async (req, res) => {
     const post = await Post.findById(req.params.id)
       .populate("postedBy", "username profilePic")
       .populate("comments.userId", "username profilePic");
-    if (!post || post.isBanned) {
+    if (!post || (post.isBanned && !req.user.isAdmin && post.postedBy.toString() !== req.user._id.toString())) {
       return res.status(404).json({ error: "Post not found or banned" });
     }
     res.status(200).json(post);
@@ -379,7 +385,7 @@ const likeUnlikePost = async (req, res) => {
     const userId = req.user._id;
 
     const post = await Post.findById(postId);
-    if (!post || post.isBanned) {
+    if (!post || (post.isBanned && !req.user.isAdmin && post.postedBy.toString() !== req.user._id.toString())) {
       return res.status(404).json({ error: "Post not found or banned" });
     }
 
@@ -406,6 +412,8 @@ const likeUnlikePost = async (req, res) => {
       });
     }
 
+    await emitAnalyticsUpdate(req.io);
+
     res.status(200).json({ likes: populatedPost.likes, post: populatedPost });
   } catch (err) {
     console.error("likeUnlikePost: Error", { message: err.message, stack: err.stack, postId: req.params.id });
@@ -424,7 +432,7 @@ const bookmarkUnbookmarkPost = async (req, res) => {
     const post = await Post.findById(postId);
     const user = await User.findById(userId);
 
-    if (!post || !user || post.isBanned) {
+    if (!post || !user || (post.isBanned && !req.user.isAdmin && post.postedBy.toString() !== req.user._id.toString())) {
       return res.status(404).json({ error: "Post or user not found, or post is banned" });
     }
 
@@ -452,6 +460,8 @@ const bookmarkUnbookmarkPost = async (req, res) => {
       });
     }
 
+    await emitAnalyticsUpdate(req.io);
+
     res.status(200).json({
       message: isBookmarked ? "Post unbookmarked" : "Post bookmarked",
       bookmarked: !isBookmarked,
@@ -464,46 +474,32 @@ const bookmarkUnbookmarkPost = async (req, res) => {
   }
 };
 
-// const getBookmarks = async (req, res) => {
-//   try {
-//     if (!req.user) {
-//       return res.status(401).json({ error: "Authentication required" });
-//     }
+const getBookmarks = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
 
-//     const { username } = req.params;
-//     const requestingUser = req.user;
+    const user = await User.findOne({ username: req.params.username });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
 
-//     const user = await User.findOne({ username });
-//     if (!user) {
-//       return res.status(404).json({ error: "User not found" });
-//     }
+    if (user._id.toString() !== req.user._id.toString() && !req.user.isAdmin) {
+      return res.status(403).json({ error: "Unauthorized to view this user's bookmarks" });
+    }
 
-//     // Only allow users to view their own bookmarks or admins to view any
-//     if (user._id.toString() !== requestingUser._id.toString() && !requestingUser.isAdmin) {
-//       return res.status(403).json({ error: "Unauthorized to view bookmarks" });
-//     }
+    const posts = await Post.find({ _id: { $in: user.bookmarks } }) // Removed isBanned: false to include banned posts
+      .populate("postedBy", "username profilePic")
+      .sort({ createdAt: -1 });
 
-//     const bookmarks = await User.findOne({ username })
-//       .populate({
-//         path: "bookmarks",
-//         match: { isBanned: false },
-//         populate: {
-//           path: "postedBy",
-//           select: "username profilePic",
-//           match: { _id: { $exists: true } },
-//         },
-//       })
-//       .lean();
+    res.status(200).json(posts);
+  } catch (error) {
+    console.error("getBookmarks error:", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
 
-//     const validBookmarks = bookmarks.bookmarks.filter((post) => post.postedBy) || [];
-//     res.status(200).json(validBookmarks);
-//   } catch (err) {
-//     console.error("getBookmarks: Error", { message: err.message, stack: err.stack, username: req.params.username });
-//     res.status(500).json({ error: `Failed to fetch bookmarks: ${err.message}` });
-//   }
-// };
-
-// Update the comment-related controller functions
 const commentOnPost = async (req, res) => {
   try {
     if (!req.user) {
@@ -519,7 +515,7 @@ const commentOnPost = async (req, res) => {
     }
 
     const post = await Post.findById(postId);
-    if (!post || post.isBanned) {
+    if (!post || (post.isBanned && !req.user.isAdmin && post.postedBy.toString() !== req.user._id.toString())) {
       return res.status(404).json({ error: "Post not found or banned" });
     }
 
@@ -555,6 +551,8 @@ const commentOnPost = async (req, res) => {
       });
     }
 
+    await emitAnalyticsUpdate(req.io);
+
     res.status(201).json({ comment: newComment, post: populatedPost });
   } catch (err) {
     console.error("commentOnPost: Error", { message: err.message, stack: err.stack, postId: req.params.postId });
@@ -562,84 +560,6 @@ const commentOnPost = async (req, res) => {
   }
 };
 
-// Updated commentOnPost function
-// const commentOnPost = async (req, res) => {
-//   try {
-//     if (!req.user) {
-//       return res.status(401).json({ error: "Authentication required" });
-//     }
-
-//     const { postId } = req.params;
-//     const { text } = req.body;
-//     const userId = req.user._id;
-
-//     if (!text || !text.trim()) {
-//       return res.status(400).json({ error: "Comment text is required" });
-//     }
-
-//     if (text.length > 500) {
-//       return res.status(400).json({ error: "Comment must be less than 500 characters" });
-//     }
-
-//     const post = await Post.findById(postId);
-//     if (!post) {
-//       return res.status(404).json({ error: "Post not found" });
-//     }
-
-//     if (post.isBanned && !req.user.isAdmin) {
-//       return res.status(403).json({ error: "Cannot comment on banned post" });
-//     }
-
-//     const user = await User.findById(userId).select("username profilePic");
-//     if (!user) {
-//       return res.status(404).json({ error: "User not found" });
-//     }
-
-//     const comment = {
-//       userId,
-//       text: sanitizeHtml(text, { allowedTags: [], allowedAttributes: {} }),
-//       username: user.username,
-//       userProfilePic: user.profilePic,
-//       createdAt: new Date(),
-//       likes: [],
-//       isEdited: false,
-//     };
-
-//     post.comments.push(comment);
-//     await post.save();
-
-//     const populatedPost = await Post.findById(post._id)
-//       .populate("postedBy", "username profilePic")
-//       .populate("comments.userId", "username profilePic");
-
-//     const newComment = populatedPost.comments.find(c => 
-//       c._id.toString() === comment._id.toString()
-//     );
-
-//     if (req.io) {
-//       req.io.to(`post:${postId}`).emit("commentAdded", {
-//         postId,
-//         comment: newComment,
-//         totalComments: post.comments.length
-//       });
-//     }
-
-//     res.status(201).json({
-//       comment: newComment,
-//       totalComments: post.comments.length,
-//       message: "Comment added successfully"
-//     });
-//   } catch (err) {
-//     console.error("commentOnPost: Error", { 
-//       message: err.message, 
-//       stack: err.stack, 
-//       postId: req.params.postId 
-//     });
-//     res.status(500).json({ error: "Failed to add comment" });
-//   }
-// };
-
-// Updated editComment function
 const editComment = async (req, res) => {
   try {
     if (!req.user) {
@@ -695,6 +615,8 @@ const editComment = async (req, res) => {
       });
     }
 
+    await emitAnalyticsUpdate(req.io);
+
     res.status(200).json({
       comment: comment,
       message: "Comment updated successfully"
@@ -710,7 +632,6 @@ const editComment = async (req, res) => {
   }
 };
 
-// Updated deleteComment function
 const deleteComment = async (req, res) => {
   try {
     if (!req.user) {
@@ -751,6 +672,8 @@ const deleteComment = async (req, res) => {
       });
     }
 
+    await emitAnalyticsUpdate(req.io);
+
     res.status(200).json({ 
       message: "Comment deleted successfully",
       totalComments: post.comments.length
@@ -766,7 +689,6 @@ const deleteComment = async (req, res) => {
   }
 };
 
-// Updated likeUnlikeComment function
 const likeUnlikeComment = async (req, res) => {
   try {
     if (!req.user) {
@@ -809,6 +731,8 @@ const likeUnlikeComment = async (req, res) => {
         action: userLikedComment ? "unliked" : "liked"
       });
     }
+
+    await emitAnalyticsUpdate(req.io);
 
     res.status(200).json({ 
       likes: comment.likes,
@@ -855,6 +779,8 @@ const banPost = async (req, res) => {
       });
     }
 
+    await emitAnalyticsUpdate(req.io);
+
     res.status(200).json({
       message: "Post banned successfully",
       post: populatedPost,
@@ -898,6 +824,8 @@ const unbanPost = async (req, res) => {
       });
     }
 
+    await emitAnalyticsUpdate(req.io);
+
     res.status(200).json({
       message: "Post unbanned successfully",
       post: populatedPost,
@@ -911,7 +839,6 @@ const unbanPost = async (req, res) => {
     res.status(500).json({ error: `Failed to unban post: ${err.message}` });
   }
 };
-
 
 const getFeedPosts = async (req, res) => {
   try {
@@ -928,7 +855,7 @@ const getFeedPosts = async (req, res) => {
     const following = user.following || [];
     const posts = await Post.find({
       postedBy: { $in: [...following, userId] },
-      isBanned: false,
+      isBanned: false, // Feed should not show banned posts
     })
       .sort({ createdAt: -1 })
       .populate({
@@ -950,36 +877,7 @@ const getFeedPosts = async (req, res) => {
   }
 };
 
- const getUserPosts = async (req, res) => {
-  try {
-    console.log("getUserPosts: User from req:", req.user); // Debug
-    if (!req.user) {
-      console.log("getUserPosts: No req.user, authentication required");
-      return res.status(401).json({ error: "Authentication required" });
-    }
-
-    const user = await User.findOne({ username: req.params.username });
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    const requestingUser = req.user;
-    if (user._id.toString() !== requestingUser._id.toString() && !requestingUser.isAdmin) {
-      return res.status(403).json({ error: "Unauthorized to view this user's posts" });
-    }
-
-    const posts = await Post.find({ postedBy: user._id, isBanned: false })
-      .populate("postedBy", "username profilePic")
-      .sort({ createdAt: -1 });
-
-    res.status(200).json(posts);
-  } catch (error) {
-    console.error("getUserPosts error:", error.message);
-    res.status(500).json({ error: "Internal server error" });
-  }
-};
-
- const getBookmarks = async (req, res) => {
+const getUserPosts = async (req, res) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: "Authentication required" });
@@ -990,18 +888,23 @@ const getFeedPosts = async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
+    // Allow viewing banned posts if the user is viewing their own profile or is an admin
+    const query = {
+      postedBy: user._id,
+    };
     if (user._id.toString() !== req.user._id.toString() && !req.user.isAdmin) {
-      return res.status(403).json({ error: "Unauthorized to view this user's bookmarks" });
+      query.isBanned = false; // Non-owners and non-admins can't see banned posts
     }
 
-    const posts = await Post.find({ _id: { $in: user.bookmarks }, isBanned: false })
+    const posts = await Post.find(query)
       .populate("postedBy", "username profilePic")
+      .populate("comments.userId", "username profilePic")
       .sort({ createdAt: -1 });
 
     res.status(200).json(posts);
-  } catch (error) {
-    console.error("getBookmarks error:", error.message);
-    res.status(500).json({ error: "Internal server error" });
+  } catch (err) {
+    console.error("getUserPosts: Error", { message: err.message, stack: err.stack, username: req.params.username });
+    res.status(500).json({ error: `Failed to fetch user posts: ${err.message}` });
   }
 };
 
@@ -1015,7 +918,7 @@ const getAllPosts = async (req, res) => {
       return res.status(403).json({ error: "Admin access required" });
     }
 
-    const posts = await Post.find({})
+    const posts = await Post.find({}) // Admins see all posts, including banned
       .sort({ createdAt: -1 })
       .populate({
         path: "postedBy",
@@ -1046,7 +949,7 @@ const getPaginatedComments = async (req, res) => {
     const { page = 1, limit = 10 } = req.query;
 
     const post = await Post.findById(postId);
-    if (!post || post.isBanned) {
+    if (!post || (post.isBanned && !req.user.isAdmin && post.postedBy.toString() !== req.user._id.toString())) {
       return res.status(404).json({ error: "Post not found or banned" });
     }
 
@@ -1120,7 +1023,7 @@ const getSuggestedPosts = async (req, res) => {
     const following = user.following || [];
     const posts = await Post.find({
       postedBy: { $nin: [userId, ...following] },
-      isBanned: false,
+      isBanned: false, // Suggested posts should not include banned posts
     })
       .sort({ createdAt: -1 })
       .limit(10)
@@ -1140,6 +1043,134 @@ const getSuggestedPosts = async (req, res) => {
   } catch (err) {
     console.error("getSuggestedPosts: Error", { message: err.message, stack: err.stack, userId: req.user._id });
     res.status(500).json({ error: `Failed to fetch suggested posts: ${err.message}` });
+  }
+};
+
+async function emitAnalyticsUpdate(io) {
+  if (!io) return;
+  const [
+    totalPosts,
+    totalUsers,
+    totalLikes,
+    totalComments,
+    bannedPosts,
+    bannedUsers,
+  ] = await Promise.all([
+    Post.countDocuments(),
+    User.countDocuments(),
+    Post.aggregate([{ $project: { count: { $size: "$likes" } } }, { $group: { _id: null, total: { $sum: "$count" } } }]),
+    Post.aggregate([{ $project: { count: { $size: "$comments" } } }, { $group: { _id: null, total: { $sum: "$count" } } }]),
+    Post.countDocuments({ isBanned: true }),
+    User.countDocuments({ isBanned: true }),
+  ]);
+  const threeMonthsAgo = new Date();
+  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+  const activityData = await Post.aggregate([
+    { $match: { createdAt: { $gte: threeMonthsAgo } } },
+    { $group: { _id: { $month: "$createdAt" }, posts: { $sum: 1 }, likes: { $sum: { $size: "$likes" } }, comments: { $sum: { $size: "$comments" } } } },
+    { $sort: { "_id": 1 } }
+  ]);
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const formattedActivityData = activityData.map(item => ({
+    month: monthNames[item._id - 1],
+    posts: item.posts,
+    likes: item.likes,
+    comments: item.comments
+  }));
+  const userActivity = await User.aggregate([
+    { $lookup: { from: "posts", localField: "_id", foreignField: "postedBy", as: "userPosts" } },
+    { $project: { username: 1, posts: { $size: "$userPosts" }, likes: { $reduce: { input: "$userPosts", initialValue: 0, in: { $add: ["$$value", { $size: "$$this.likes" }] } } } } },
+    { $sort: { posts: -1 } },
+    { $limit: 50 }
+  ]);
+  const recentPosts = await Post.find({})
+    .sort({ createdAt: -1 })
+    .limit(6)
+    .populate("postedBy", "username isBanned");
+  io.emit("analyticsUpdate", {
+    totalPosts,
+    totalUsers,
+    totalLikes: totalLikes[0]?.total || 0,
+    totalComments: totalComments[0]?.total || 0,
+    bannedPosts,
+    bannedUsers,
+    activityData: formattedActivityData,
+    userActivity,
+    recentPosts
+  });
+}
+
+const adminBanPost = async (req, res) => {
+  try {
+    if (!req.user || !req.user.isAdmin) {
+      return res.status(403).json({ error: "Only admin can ban posts" });
+    }
+
+    const post = await Post.findById(req.params.id);
+    if (!post) {
+      return res.status(404).json({ error: "Post not found" });
+    }
+    if (post.isBanned) {
+      return res.status(400).json({ error: "Post is already banned" });
+    }
+
+    post.isBanned = true;
+    await post.save();
+
+    const populatedPost = await Post.findById(post._id)
+      .populate("postedBy", "username profilePic")
+      .populate("comments.userId", "username profilePic");
+
+    if (req.io) {
+      req.io.to(`post:${post._id}`).emit("postBanned", {
+        postId: post._id,
+        post: populatedPost,
+      });
+    }
+
+    await emitAnalyticsUpdate(req.io);
+
+    res.status(200).json({ message: "Post banned successfully", post: populatedPost });
+  } catch (err) {
+    console.error("adminBanPost: Error", err);
+    res.status(500).json({ error: "Failed to ban post" });
+  }
+};
+
+const adminUnbanPost = async (req, res) => {
+  try {
+    if (!req.user || !req.user.isAdmin) {
+      return res.status(403).json({ error: "Only admin can unban posts" });
+    }
+
+    const post = await Post.findById(req.params.id);
+    if (!post) {
+      return res.status(404).json({ error: "Post not found" });
+    }
+    if (!post.isBanned) {
+      return res.status(400).json({ error: "Post is not banned" });
+    }
+
+    post.isBanned = false;
+    await post.save();
+
+    const populatedPost = await Post.findById(post._id)
+      .populate("postedBy", "username profilePic")
+      .populate("comments.userId", "username profilePic");
+
+    if (req.io) {
+      req.io.to(`post:${post._id}`).emit("postUnbanned", {
+        postId: post._id,
+        post: populatedPost,
+      });
+    }
+
+    await emitAnalyticsUpdate(req.io);
+
+    res.status(200).json({ message: "Post unbanned successfully", post: populatedPost });
+  } catch (err) {
+    console.error("adminUnbanPost: Error", err);
+    res.status(500).json({ error: "Failed to unban post" });
   }
 };
 
@@ -1164,4 +1195,6 @@ export {
   editPost,
   getSuggestedPosts,
   getPaginatedComments,
+  adminBanPost,
+  adminUnbanPost,
 };

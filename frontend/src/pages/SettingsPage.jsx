@@ -1,77 +1,215 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
 import {
   Box,
-  Button,
-  Card,
-  CardContent,
-  CircularProgress,
+  Container,
   Typography,
+  Switch,
+  FormControlLabel,
+  Paper,
+  Divider,
+  Button,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
-import { message } from "antd";
-import useLogout from "../hooks/useLogout";
+import { useRecoilState } from "recoil";
+import userAtom from "../atoms/userAtom";
+import { toast } from "react-toastify";
+import { useNavigate } from "react-router-dom";
+import { Brightness4, Brightness7, Palette, Contrast } from "@mui/icons-material";
 
-export const SettingsPage = () => {
-  const [loading, setLoading] = useState(false);
-  const logout = useLogout();
+const SettingsPage = ({ themeSettings, updateThemeSettings }) => {
+  const [user, setUser] = useRecoilState(userAtom);
+  const theme = useTheme();
+  const isSmallScreen = useMediaQuery("(max-width:600px)");
+  const navigate = useNavigate();
 
-  const freezeAccount = async () => {
-    if (!window.confirm("Are you sure you want to freeze your account?")) return;
+  // Custom toast function for this component
+  const showToast = (type, message) => {
+    toast[type](message, {
+      position: "top-center",
+      autoClose: 3000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+      progress: undefined,
+      theme: theme.palette.mode === "dark" ? "dark" : "light",
+    });
+  };
 
-    setLoading(true);
-    try {
-      const res = await fetch("/api/users/freeze", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-      });
-      const data = await res.json();
+  const handleThemeToggle = () => {
+    const newMode = themeSettings.darkMode === "dark" ? "light" : "dark";
+    updateThemeSettings({ darkMode: newMode });
+    showToast("success", `Switched to ${newMode} mode`);
+  };
 
-      if (data.error) {
-        message.error(data.error);
-        return;
-      }
-      if (data.success) {
-        await logout();
-        message.success("Your account has been frozen");
-      }
-    } catch (error) {
-      message.error(error.message);
-    } finally {
-      setLoading(false);
-    }
+  const handleGlassIntensityChange = (value) => {
+    updateThemeSettings({ glassIntensity: value });
+  };
+
+  const handleHighContrastTextToggle = () => {
+    updateThemeSettings({ highContrastText: !themeSettings.highContrastText });
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    setUser(null);
+    showToast("success", "Logged out successfully");
+    navigate("/auth");
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
+    <Container
+      maxWidth="sm"
+      sx={{
+        py: 4,
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+      }}
     >
-      <Card>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Freeze Your Account
+      <Paper
+        sx={{
+          p: 3,
+          borderRadius: 4,
+          background: "rgba(255, 255, 255, 0.05)",
+          backdropFilter: `blur(${themeSettings.glassIntensity}px)`,
+          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
+          border: "1px solid rgba(255, 255, 255, 0.2)",
+        }}
+      >
+        <Typography
+          variant="h4"
+          component="h1"
+          gutterBottom
+          sx={{
+            fontWeight: 700,
+            background: "linear-gradient(45deg, #8515fc, #8b5cf6)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            mb: 3,
+          }}
+        >
+          Settings
+        </Typography>
+
+        {/* Theme Settings Section */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h6" component="h2" sx={{ mb: 2, display: "flex", alignItems: "center" }}>
+            <Palette sx={{ mr: 1 }} /> Appearance
           </Typography>
-          <Typography variant="body1" gutterBottom>
-            You can unfreeze your account anytime by logging in.
+
+          <Paper
+            sx={{
+              p: 2,
+              mb: 2,
+              background: "rgba(255, 255, 255, 0.03)",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+            }}
+          >
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={themeSettings.darkMode === "dark"}
+                  onChange={handleThemeToggle}
+                  color="secondary"
+                />
+              }
+              label={
+                <Box sx={{ display: "flex", alignItems: "center" }}>
+                  {themeSettings.darkMode === "dark" ? (
+                    <Brightness7 sx={{ mr: 1 }} />
+                  ) : (
+                    <Brightness4 sx={{ mr: 1 }} />
+                  )}
+                  {themeSettings.darkMode === "dark" ? "Dark Mode" : "Light Mode"}
+                </Box>
+              }
+              sx={{ width: "100%" }}
+            />
+          </Paper>
+
+          <Paper
+            sx={{
+              p: 2,
+              mb: 2,
+              background: "rgba(255, 255, 255, 0.03)",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+            }}
+          >
+            <Typography variant="subtitle1" gutterBottom sx={{ display: "flex", alignItems: "center" }}>
+              <Contrast sx={{ mr: 1 }} /> Glass Effect Intensity
+            </Typography>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+              <Typography variant="caption">Soft</Typography>
+              <input
+                type="range"
+                min="0"
+                max="20"
+                value={themeSettings.glassIntensity}
+                onChange={(e) => handleGlassIntensityChange(parseInt(e.target.value))}
+                style={{ flexGrow: 1 }}
+              />
+              <Typography variant="caption">Strong</Typography>
+            </Box>
+          </Paper>
+
+          <Paper
+            sx={{
+              p: 2,
+              background: "rgba(255, 255, 255, 0.03)",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+            }}
+          >
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={themeSettings.highContrastText}
+                  onChange={handleHighContrastTextToggle}
+                  color="secondary"
+                />
+              }
+              label="High Contrast Text"
+              sx={{ width: "100%" }}
+            />
+            <Typography variant="caption" sx={{ display: "block", mt: 1 }}>
+              Improves text readability on glass backgrounds
+            </Typography>
+          </Paper>
+        </Box>
+
+        <Divider sx={{ my: 3, borderColor: "rgba(255, 255, 255, 0.1)" }} />
+
+        {/* Account Settings Section */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h6" component="h2" sx={{ mb: 2 }}>
+            Account
           </Typography>
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            Freezing your account will make your profile and posts temporarily
-            inaccessible to others.
+          <Button
+            variant="outlined"
+            color="error"
+            onClick={handleLogout}
+            fullWidth
+            sx={{
+              py: 1.5,
+              borderRadius: 2,
+              borderWidth: 2,
+              "&:hover": { borderWidth: 2 },
+            }}
+          >
+            Log Out
+          </Button>
+        </Box>
+
+        {/* App Info Section */}
+        <Box>
+          <Typography variant="body2" color="text.secondary" align="center">
+            App Version 1.0.0
           </Typography>
-          <Box mt={2}>
-            <Button
-              variant="contained"
-              color="error"
-              onClick={freezeAccount}
-              disabled={loading}
-              startIcon={loading ? <CircularProgress size={20} /> : null}
-            >
-              Freeze Account
-            </Button>
-          </Box>
-        </CardContent>
-      </Card>
-    </motion.div>
+        </Box>
+      </Paper>
+    </Container>
   );
 };
+
+export default SettingsPage;

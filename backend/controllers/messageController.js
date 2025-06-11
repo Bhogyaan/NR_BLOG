@@ -50,7 +50,7 @@ async function sendMessage(req, res) {
     if (!conversation) {
       conversation = new Conversation({
         participants: [senderId, recipientId],
-        lastMessage: { text: message || 'Media', sender: senderId, seen: false },
+        lastMessage: { text: message || 'Media', sender: senderId, seen: false, status: 'sent' },
       });
       await conversation.save();
     }
@@ -72,7 +72,7 @@ async function sendMessage(req, res) {
     await newMessage.save();
 
     await conversation.updateOne({
-      lastMessage: { text: sanitizedMessage || 'Media', sender: senderId, seen: false },
+      lastMessage: { text: sanitizedMessage || 'Media', sender: senderId, seen: false, status: 'sent' },
       updatedAt: new Date(),
     });
 
@@ -88,8 +88,8 @@ async function sendMessage(req, res) {
 
     const recipientSocketId = getRecipientSocketId(recipientId);
     if (recipientSocketId) {
-      await Message.updateOne({ _id: newMessage._id }, { status: 'received' });
-      messagePayload.status = 'received';
+      await Message.updateOne({ _id: newMessage._id }, { status: 'delivered' });
+      messagePayload.status = 'delivered';
       io.to(`conv:${conversation._id}`).emit('newMessage', messagePayload);
       io.to(recipientSocketId).emit('newMessageNotification', {
         conversationId: conversation._id,
@@ -101,6 +101,25 @@ async function sendMessage(req, res) {
     }
 
     io.to(`user:${senderId}`).emit('newMessage', messagePayload);
+
+    // Update conversation list for all participants
+    const updatedConversation = await Conversation.findById(conversation._id)
+      .populate('participants', 'username profilePic')
+      .lean();
+    updatedConversation.participants.forEach((participant) => {
+      const participantSocketId = getRecipientSocketId(participant._id);
+      if (participantSocketId) {
+        io.to(participantSocketId).emit('updateConversation', {
+          conversationId: conversation._id,
+          lastMessage: {
+            text: sanitizedMessage || 'Media',
+            sender: populatedMessage.sender,
+            seen: false,
+            status: 'sent',
+          },
+        });
+      }
+    });
 
     res.status(201).json(messagePayload);
   } catch (error) {
@@ -155,11 +174,39 @@ async function getMessages(req, res) {
 
     if (updatedMessages.modifiedCount > 0) {
       const seenMessages = messages
-        .filter((msg) => msg.sender._id.toString() === otherUserId && !msg.seen)
+        .filter((msg) => msg.sender._id === otherUserId && !msg.seen)
         .map((msg) => msg._id.toString());
       io.to(`conv:${conversation._id}`).emit('messagesSeen', {
         conversationId: conversation._id,
         seenMessages,
+      });
+
+      const recipientSocketId = getRecipientSocketId(otherUserId);
+      if (recipientSocketId) {
+        io.to(recipientSocketId).emit('messagesSeenNotification', {
+          conversationId: conversation._id,
+          seenMessages,
+        });
+      }
+
+      await Conversation.updateOne(
+        { _id: conversation._id },
+        {
+          $set: {
+            'lastMessage.seen': true,
+            'lastMessage.status': 'seen',
+          },
+        }
+      );
+
+      io.to(`user:${otherUserId}`).emit('updateConversation', {
+        conversationId: conversation._id,
+        lastMessage: {
+          text: conversation.lastMessage.text,
+          sender: conversation.lastMessage.sender,
+          seen: true,
+          status: 'seen',
+        },
       });
     }
 
@@ -192,18 +239,31 @@ async function getConversations(req, res) {
       return res.status(429).json({ error: 'Too many requests, please try again later' });
     }
 
-    const conversations = await Conversation.find({ participants: userId }).populate({
-      path: 'participants',
-      select: 'username profilePic',
-    });
+    const conversations = await Conversation.find({ participants: userId })
+      .populate({
+        path: 'participants',
+        select: 'username profilePic',
+      })
+      .lean();
 
-    conversations.forEach((conversation) => {
+    const conversationsWithUnread = await Promise.all(
+      conversations.map(async (conversation) => {
+        const unreadCount = await Message.countDocuments({
+          conversationId: conversation._id,
+          sender: { $ne: userId },
+          seen: false,
+        });
+        return { ...conversation, unreadCount };
+      })
+    );
+
+    conversationsWithUnread.forEach((conversation) => {
       conversation.participants = conversation.participants.filter(
         (participant) => participant._id.toString() !== userId.toString()
       );
     });
 
-    res.status(200).json(conversations);
+    res.status(200).json(conversationsWithUnread);
   } catch (error) {
     console.error('Get conversations error:', {
       message: error.message,

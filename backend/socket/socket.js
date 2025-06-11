@@ -4,7 +4,7 @@ import express from "express";
 import Message from "../models/messageModel.js";
 import Conversation from "../models/conversationModel.js";
 import User from "../models/userModel.js";
-import {Post} from "../models/postModel.js";
+import { Post } from "../models/postModel.js";
 
 const app = express();
 const server = http.createServer(app);
@@ -51,7 +51,6 @@ io.on("connection", (socket) => {
     return;
   }
 
-  // Post room management
   socket.on("joinPost", (postId) => {
     if (postId) {
       socket.join(`post:${postId}`);
@@ -76,24 +75,28 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Conversation handlers (keep existing)
   socket.on("messageDelivered", async ({ messageId, conversationId, recipientId }) => {
     try {
       if (!messageId || !conversationId || !recipientId) return;
-      
+
       const updatedMessage = await Message.findByIdAndUpdate(
         messageId,
         { status: "delivered" },
         { new: true }
       ).lean();
-      
+
       if (!updatedMessage) return;
-      
+
+      await Conversation.updateOne(
+        { _id: conversationId },
+        { $set: { "lastMessage.status": "delivered" } }
+      );
+
       const senderSocketId = getRecipientSocketId(updatedMessage.sender);
       if (senderSocketId) {
-        io.to(senderSocketId).emit("messageDelivered", { 
-          messageId, 
-          conversationId 
+        io.to(senderSocketId).emit("messageDelivered", {
+          messageId,
+          conversationId,
         });
       }
     } catch (error) {
@@ -104,7 +107,7 @@ io.on("connection", (socket) => {
   socket.on("markMessagesAsSeen", async ({ conversationId, userId }) => {
     try {
       if (!conversationId || !userId) return;
-      
+
       const conversation = await Conversation.findById(conversationId).lean();
       if (!conversation) return;
 
@@ -117,7 +120,7 @@ io.on("connection", (socket) => {
       if (!messages.length) return;
 
       const seenMessageIds = messages.map((msg) => msg._id.toString());
-      
+
       await Message.updateMany(
         { _id: { $in: seenMessageIds } },
         { $set: { seen: true, status: "seen" } }
@@ -125,13 +128,28 @@ io.on("connection", (socket) => {
 
       await Conversation.updateOne(
         { _id: conversationId },
-        { $set: { "lastMessage.seen": true } }
+        {
+          $set: {
+            "lastMessage.seen": true,
+            "lastMessage.status": "seen",
+          },
+        }
       );
 
-      io.to(`conv:${conversationId}`).emit("messagesSeen", { 
-        conversationId, 
-        seenMessages: seenMessageIds 
+      io.to(`conv:${conversationId}`).emit("messagesSeen", {
+        conversationId,
+        seenMessages: seenMessageIds,
       });
+
+      const recipientSocketId = getRecipientSocketId(
+        conversation.participants.find((p) => p.toString() !== userId)
+      );
+      if (recipientSocketId) {
+        io.to(recipientSocketId).emit("messagesSeenNotification", {
+          conversationId,
+          seenMessages: seenMessageIds,
+        });
+      }
     } catch (error) {
       console.error("Error marking messages as seen:", error.message);
     }
@@ -139,7 +157,11 @@ io.on("connection", (socket) => {
 
   socket.on("newMessage", async (message) => {
     try {
-      if (!message?.recipientId || !message?.sender?._id || !message?.conversationId) {
+      if (
+        !message?.recipientId ||
+        !message?.sender?._id ||
+        !message?.conversationId
+      ) {
         console.error("Invalid message format", message);
         return;
       }
@@ -154,18 +176,19 @@ io.on("connection", (socket) => {
       });
 
       const savedMessage = await newMessage.save();
-      
+
       await Conversation.findByIdAndUpdate(message.conversationId, {
         lastMessage: {
           text: message.text || "Media",
           sender: message.sender._id,
           seen: false,
+          status: "sent",
         },
         updatedAt: new Date(),
       });
 
       const populatedMessage = await Message.findById(savedMessage._id)
-        .populate('sender', 'username profilePic')
+        .populate("sender", "username profilePic")
         .lean();
 
       io.to(`conv:${message.conversationId}`).emit("newMessage", {
@@ -175,13 +198,45 @@ io.on("connection", (socket) => {
 
       const recipientSocketId = getRecipientSocketId(message.recipientId);
       if (recipientSocketId) {
-        setTimeout(() => {
+        setTimeout(async () => {
+          await Message.findByIdAndUpdate(savedMessage._id, {
+            status: "delivered",
+          });
           io.to(recipientSocketId).emit("messageDelivered", {
             messageId: savedMessage._id,
             conversationId: message.conversationId,
           });
+
+          if (!socket.rooms.has(`conv:${message.conversationId}`)) {
+            io.to(recipientSocketId).emit("newMessageNotification", {
+              conversationId: message.conversationId,
+              sender: populatedMessage.sender,
+              text: message.text || "Media",
+              img: message.img,
+              messageId: savedMessage._id,
+            });
+          }
         }, 500);
       }
+
+      // Update conversation list for all participants
+      const conversation = await Conversation.findById(message.conversationId)
+        .populate("participants", "username profilePic")
+        .lean();
+      conversation.participants.forEach((participant) => {
+        const participantSocketId = getRecipientSocketId(participant._id);
+        if (participantSocketId) {
+          io.to(participantSocketId).emit("updateConversation", {
+            conversationId: message.conversationId,
+            lastMessage: {
+              text: message.text || "Media",
+              sender: message.sender,
+              seen: false,
+              status: "sent",
+            },
+          });
+        }
+      });
     } catch (error) {
       console.error("Error handling new message:", error);
     }
@@ -190,7 +245,7 @@ io.on("connection", (socket) => {
   socket.on("typing", ({ conversationId, userId }) => {
     try {
       if (!conversationId || !userId) return;
-      
+
       socket.to(`conv:${conversationId}`).emit("typing", {
         conversationId,
         userId,
@@ -203,7 +258,7 @@ io.on("connection", (socket) => {
   socket.on("stopTyping", ({ conversationId, userId }) => {
     try {
       if (!conversationId || !userId) return;
-      
+
       socket.to(`conv:${conversationId}`).emit("stopTyping", {
         conversationId,
         userId,
@@ -230,8 +285,7 @@ io.on("connection", (socket) => {
     if (userId && userSocketMap[userId] === socket.id) {
       delete userSocketMap[userId];
       io.emit("getOnlineUsers", Object.keys(userSocketMap));
-      
-      // Clean up post rooms
+
       postRooms.forEach((sockets, postId) => {
         if (sockets.has(socket.id)) {
           sockets.delete(socket.id);
@@ -241,16 +295,15 @@ io.on("connection", (socket) => {
         }
       });
 
-      // Clean up typing indicators
       typingUsers.forEach((conversationTyping, conversationId) => {
         if (conversationTyping.has(userId)) {
           conversationTyping.delete(userId);
           if (conversationTyping.size === 0) {
             typingUsers.delete(conversationId);
           }
-          io.to(`conv:${conversationId}`).emit("stopTyping", { 
-            conversationId, 
-            userId 
+          io.to(`conv:${conversationId}`).emit("stopTyping", {
+            conversationId,
+            userId,
           });
         }
       });

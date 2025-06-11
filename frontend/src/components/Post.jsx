@@ -41,7 +41,7 @@ import CommentItem from "./CommentItem";
 import { SocketContext } from "../context/SocketContext";
 import { ThumbUp, Comment as CommentIcon, Bookmark } from "@mui/icons-material";
 
-const Post = ({ post, postedBy }) => {
+const Post = ({ post, postedBy, isAdminView = false }) => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
@@ -254,7 +254,7 @@ const Post = ({ post, postedBy }) => {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
         credentials: "include",
       });
@@ -270,6 +270,7 @@ const Post = ({ post, postedBy }) => {
           p._id === post._id ? { ...p, isBanned: true } : p
         ),
       }));
+      socket?.emit("postStatusUpdate", { postId: post._id, isBanned: true });
     } catch (error) {
       message.error(error.message || "Failed to ban post");
     }
@@ -282,7 +283,7 @@ const Post = ({ post, postedBy }) => {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
         credentials: "include",
       });
@@ -298,6 +299,7 @@ const Post = ({ post, postedBy }) => {
           p._id === post._id ? { ...p, isBanned: false } : p
         ),
       }));
+      socket?.emit("postStatusUpdate", { postId: post._id, isBanned: false });
     } catch (error) {
       message.error(error.message || "Failed to unban post");
     }
@@ -310,7 +312,7 @@ const Post = ({ post, postedBy }) => {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
         credentials: "include",
       });
@@ -332,7 +334,7 @@ const Post = ({ post, postedBy }) => {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ text }),
         credentials: "include",
@@ -355,7 +357,7 @@ const Post = ({ post, postedBy }) => {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
         credentials: "include",
       });
@@ -478,7 +480,7 @@ const Post = ({ post, postedBy }) => {
               zIndex: 10,
             }}
           >
-            Banned Post
+            Banned by Admin
           </Typography>
         )}
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -510,7 +512,7 @@ const Post = ({ post, postedBy }) => {
               )}
               <Typography
                 variant="caption"
-                color="text.secondary"
+                color="text.black"
                 sx={{ fontSize: "0.75rem", marginLeft: 1 }}
               >
                 {formatDistanceToNow(new Date(post.createdAt))} ago
@@ -658,15 +660,13 @@ const Post = ({ post, postedBy }) => {
                 </Box>
               )}
               {post.mediaType === "audio" && (
-                <Box sx={{ width: "100%", paddingX: { xs: 1, sm: 2 }, paddingY: 1, display: "flex", justifyContent: "center" }}>
-                  <Box sx={{ width: "100%", maxWidth: "100%" }}>
-                    <audio
-                      src={post.media}
-                      controls
-                      style={{ width: "100%", maxWidth: 400 }}
-                      onError={(e) => (e.target.src = "/default-audio.mp3")}
-                    />
-                  </Box>
+                <Box sx={{ width: "100%", paddingY: 1, display: "flex", justifyContent: "center" }}>
+                  <audio
+                    src={post.media}
+                    controls
+                    style={{ width: "100%", maxWidth: "500px", height: "40px" }}
+                    onError={(e) => (e.target.src = "/default-audio.mp3")}
+                  />
                 </Box>
               )}
               {post.mediaType === "document" && (
@@ -687,7 +687,7 @@ const Post = ({ post, postedBy }) => {
         </Box>
 
         <Box sx={{ marginTop: 1, width: "100%", display: "flex", justifyContent: "center", alignItems: "center" }}>
-          {currentUser?.isAdmin ? (
+          {(currentUser?.isAdmin || isAdminView) ? (
             <Box sx={{ display: "flex", justifyContent: "center", gap: 2 }}>
               <Typography variant="caption" sx={{ display: "flex", alignItems: "center" }}>
                 <ThumbUp sx={{ fontSize: 16, mr: 0.5 }} /> {post.likes?.length || 0}
@@ -742,15 +742,14 @@ const Post = ({ post, postedBy }) => {
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
               <Typography
                 variant="h6"
-                color="text.primary"
-                sx={{ fontSize: { xs: "1rem", sm: "1.25rem" } }}
+                sx={{ color: "#000000", fontSize: { xs: "1rem", sm: "1.25rem" } }} // Black for header
               >
                 Comments
               </Typography>
               <Button
                 variant="text"
                 sx={{
-                  color: "text.primary",
+                  color: "#000000", // Black for Close button
                   fontSize: "14px",
                 }}
                 onClick={() => {
@@ -785,7 +784,8 @@ const Post = ({ post, postedBy }) => {
                     sx={{
                       backgroundColor: "rgba(255, 255, 255, 0.3)",
                       backdropFilter: "blur(5px)",
-                      input: { color: "text.primary" },
+                      "& .MuiOutlinedInput-input": { color: "#000000" }, // Black for input text
+                      "& .MuiInputLabel-root": { color: "#1C2526" }, // Dark gray for label
                       "& .MuiOutlinedInput-root": {
                         "& fieldset": { borderColor: "rgba(255, 255, 255, 0.3)" },
                         "&:hover fieldset": { borderColor: "rgba(255, 255, 255, 0.5)" },
@@ -799,7 +799,7 @@ const Post = ({ post, postedBy }) => {
                   variant="contained"
                   onClick={handleAddComment}
                   sx={{
-                    color: "primary.main",
+                    color: "#000000", // Black for Post button text
                     backgroundColor: "rgba(255, 255, 255, 0.3)",
                     backdropFilter: "blur(5px)",
                     "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.5)" },
@@ -827,9 +827,7 @@ const Post = ({ post, postedBy }) => {
               ))
             ) : (
               <Typography
-                color="text.primary"
-                textAlign="center"
-                sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}
+                sx={{ color: "#000000", textAlign: "center", fontSize: { xs: "0.875rem", sm: "1rem" } }} // Black for no comments message
               >
                 No comments yet.
               </Typography>
