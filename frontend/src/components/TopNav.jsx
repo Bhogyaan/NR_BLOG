@@ -16,6 +16,7 @@ import {
   InputBase,
   alpha,
   styled,
+  useTheme,
 } from "@mui/material";
 import {
   HomeOutlined as HomeIcon,
@@ -27,6 +28,7 @@ import {
 } from "@mui/icons-material";
 import { Flex as AntdFlex } from "antd";
 import { motion } from "framer-motion";
+import Logo from './Logo';
 
 const Search = styled("div")(({ theme }) => ({
   position: "relative",
@@ -75,6 +77,8 @@ const TopNav = ({ user, sx }) => {
   const [animateText, setAnimateText] = useState(false);
   const isMediumScreen = useMediaQuery("(min-width:500px) and (max-width:1024px)");
   const isSmallScreen = useMediaQuery("(max-width:500px)");
+  const theme = useTheme();
+  const logoSrc = theme.palette.mode === 'dark' ? '/light-logo.svg' : '/dark-logo.svg';
 
   const handleLogout = () => {
     try {
@@ -109,12 +113,13 @@ const TopNav = ({ user, sx }) => {
     <AppBar
       position="fixed"
       sx={{
-        bgcolor: "black", // Updated background color to black
-        boxShadow: "0 4px 8px rgba(0,0,0,0.2)", // Enhanced shadow
+        bgcolor: theme.palette.background.default,
+        color: theme.palette.text.primary,
+        boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
         top: 0,
         zIndex: 1200,
-        borderBottomLeftRadius: isMediumScreen ? "20px" : "0", // Curved borders for medium screens
-        borderBottomRightRadius: isMediumScreen ? "20px" : "0", // Curved borders for medium screens
+        borderBottomLeftRadius: isMediumScreen ? "20px" : "0",
+        borderBottomRightRadius: isMediumScreen ? "20px" : "0",
         ...sx,
       }}
     >
@@ -130,34 +135,14 @@ const TopNav = ({ user, sx }) => {
       >
         {/* Left Side - Logo and Animated Name */}
         <AntdFlex align="center" gap={isMediumScreen ? 2 : 4}>
-          <Box
-            component={motion.div}
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ duration: 0.5 }}
-            sx={{
-              bgcolor: "white",
-              width: 36,
-              height: 36,
-              borderRadius: "50%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "black", // Updated text color to black
-              fontWeight: "bold",
-              fontSize: "1.2rem",
-              boxShadow: "0 4px 8px rgba(0,0,0,0.2)", // Added shadow for depth
-            }}
-          >
-            NR
-          </Box>
+          <Logo size={36} />
           <Typography
             component={motion.p}
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: animateText ? 1 : 0, x: animateText ? 0 : -20 }}
             transition={{ duration: 0.5 }}
             variant={isSmallScreen ? "body1" : "h6"}
-            sx={{ color: "white", fontWeight: "bold" }}
+            sx={{ color: "var(--color-text)", fontWeight: "bold" }}
           >
             NR BLOG
           </Typography>
@@ -186,60 +171,59 @@ const TopNav = ({ user, sx }) => {
           <Tooltip title="Home">
             <IconButton
               component={motion.button}
-              whileHover={{ scale: 1.2 }} // Enhanced hover effect with scale only
+              whileHover={{ scale: 1.2 }}
               whileTap={{ scale: 0.9 }}
               onClick={() => navigate("/")}
               sx={{
-                color: "white",
+                color: "var(--color-text)",
                 p: isMediumScreen ? 1 : 1.5,
-                borderRadius: "50%", // Curved border
-                backgroundColor: "rgba(255, 255, 255, 0.1)", // Background color for better visibility
+                borderRadius: "50%",
+                backgroundColor: "var(--color-bg-paper)",
                 "&:hover": {
-                  backgroundColor: "rgba(255, 255, 255, 0.2)", // Background color on hover
-                  color: "#8515fe", // Active color
+                  backgroundColor: "var(--color-accent)",
+                  color: "#fff",
                 },
               }}
-              aria-label="Home"
             >
-              <HomeIcon fontSize={isMediumScreen ? "small" : "medium"} />
+              <HomeIcon />
             </IconButton>
           </Tooltip>
           <Tooltip title="Chat">
             <IconButton
               component={motion.button}
-              whileHover={{ scale: 1.2 }} // Enhanced hover effect with scale only
+              whileHover={{ scale: 1.2 }}
               whileTap={{ scale: 0.9 }}
               onClick={() => navigate("/chat")}
               sx={{
-                color: "white",
+                color: "var(--color-text)",
                 p: isMediumScreen ? 1 : 1.5,
-                borderRadius: "50%", // Curved border
-                backgroundColor: "rgba(255, 255, 255, 0.1)", // Background color for better visibility
+                borderRadius: "50%",
+                backgroundColor: "var(--color-bg-paper)",
                 "&:hover": {
-                  backgroundColor: "rgba(255, 255, 255, 0.2)", // Background color on hover
-                  color: "#8515fe", // Active color
+                  backgroundColor: "var(--color-accent)",
+                  color: "#fff",
                 },
               }}
-              aria-label="Chat"
             >
-              <ChatIcon fontSize={isMediumScreen ? "small" : "medium"} />
+              <ChatIcon />
             </IconButton>
           </Tooltip>
           <Tooltip title="Profile">
             <IconButton
               component={motion.button}
-              whileHover={{ scale: 1.2 }} // Enhanced hover effect with scale only
+              whileHover={{ scale: 1.2 }}
               whileTap={{ scale: 0.9 }}
               onClick={() => navigate(`/${user?.username}`)}
               sx={{
-                p: 0,
+                color: "var(--color-text)",
+                p: isMediumScreen ? 1 : 1.5,
                 borderRadius: "50%",
-                backgroundColor: "rgba(255, 255, 255, 0.1)", // Background color for better visibility
+                backgroundColor: "var(--color-bg-paper)",
                 "&:hover": {
-                  backgroundColor: "rgba(255, 255, 255, 0.2)", // Background color on hover
+                  backgroundColor: "var(--color-accent)",
+                  color: "#fff",
                 },
               }}
-              aria-label="Profile"
             >
               <Avatar
                 src={user?.profilePic}
@@ -251,43 +235,41 @@ const TopNav = ({ user, sx }) => {
           <Tooltip title="Settings">
             <IconButton
               component={motion.button}
-              whileHover={{ scale: 1.2 }} // Enhanced hover effect with scale only
+              whileHover={{ scale: 1.2 }}
               whileTap={{ scale: 0.9 }}
               onClick={() => navigate("/settings")}
               sx={{
-                color: "white",
+                color: "var(--color-text)",
                 p: isMediumScreen ? 1 : 1.5,
-                borderRadius: "50%", // Curved border
-                backgroundColor: "rgba(255, 255, 255, 0.1)", // Background color for better visibility
+                borderRadius: "50%",
+                backgroundColor: "var(--color-bg-paper)",
                 "&:hover": {
-                  backgroundColor: "rgba(255, 255, 255, 0.2)", // Background color on hover
-                  color: "#8515fe", // Active color
+                  backgroundColor: "var(--color-accent)",
+                  color: "#fff",
                 },
               }}
-              aria-label="Settings"
             >
-              <SettingsIcon fontSize={isMediumScreen ? "small" : "medium"} />
+              <SettingsIcon />
             </IconButton>
           </Tooltip>
           <Tooltip title="Logout">
             <IconButton
               component={motion.button}
-              whileHover={{ scale: 1.2 }} // Enhanced hover effect with scale only
+              whileHover={{ scale: 1.2 }}
               whileTap={{ scale: 0.9 }}
               onClick={handleLogout}
               sx={{
-                color: "white",
+                color: "var(--color-text)",
                 p: isMediumScreen ? 1 : 1.5,
-                borderRadius: "50%", // Curved border
-                backgroundColor: "rgba(255, 255, 255, 0.1)", // Background color for better visibility
+                borderRadius: "50%",
+                backgroundColor: "var(--color-bg-paper)",
                 "&:hover": {
-                  backgroundColor: "rgba(255, 255, 255, 0.2)", // Background color on hover
-                  color: "#8515fe", // Active color
+                  backgroundColor: "var(--color-accent)",
+                  color: "#fff",
                 },
               }}
-              aria-label="Logout"
             >
-              <LogoutIcon fontSize={isMediumScreen ? "small" : "medium"} />
+              <LogoutIcon />
             </IconButton>
           </Tooltip>
         </AntdFlex>

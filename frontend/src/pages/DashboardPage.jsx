@@ -18,12 +18,14 @@ import { message } from "antd";
 import userAtom from "../atoms/userAtom";
 import AnalyticsChart from "../components/AnalyticsChart";
 import useShowToast from "../hooks/useShowToast";
+import { useTheme } from '@mui/material/styles';
 
 const DashboardPage = () => {
   const user = useRecoilValue(userAtom);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const showToast = useShowToast();
+  const theme = useTheme();
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -109,7 +111,7 @@ const DashboardPage = () => {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
       <Box sx={{ p: 3, maxWidth: "1200px", mx: "auto" }}>
-        <Typography variant="h4" gutterBottom color="#e0e0e0">
+        <Typography variant="h4" gutterBottom color={theme.palette.text.primary}>
           {user.isAdmin ? "Admin Real-Time Dashboard" : "Your Dashboard"}
         </Typography>
         {user.isAdmin && (
@@ -122,7 +124,7 @@ const DashboardPage = () => {
           {user.isAdmin ? (
             <>
               <Grid item xs={12} md={4}>
-                <Card sx={{ bgcolor: "#3d3d3d", color: "#e0e0e0" }}>
+                <Card sx={{ bgcolor: theme.palette.background.default, color: theme.palette.text.primary }}>
                   <CardContent>
                     <Typography variant="h6" gutterBottom>Platform Statistics</Typography>
                     <Typography>Total Users: {stats.totalUsers}</Typography>
@@ -133,7 +135,7 @@ const DashboardPage = () => {
                 </Card>
               </Grid>
               <Grid item xs={12} md={8}>
-                <Card sx={{ bgcolor: "#3d3d3d", color: "#e0e0e0" }}>
+                <Card sx={{ bgcolor: theme.palette.background.default, color: theme.palette.text.primary }}>
                   <CardContent>
                     <Typography variant="h6" gutterBottom>Posts</Typography>
                     <Table>
@@ -166,7 +168,7 @@ const DashboardPage = () => {
                 </Card>
               </Grid>
               <Grid item xs={12}>
-                <Card sx={{ bgcolor: "#3d3d3d", color: "#e0e0e0" }}>
+                <Card sx={{ bgcolor: theme.palette.background.default, color: theme.palette.text.primary }}>
                   <CardContent>
                     <Typography variant="h6" gutterBottom>Users</Typography>
                     <Table>
@@ -200,7 +202,7 @@ const DashboardPage = () => {
           ) : (
             <>
               <Grid item xs={12} md={4}>
-                <Card sx={{ bgcolor: "#3d3d3d", color: "#e0e0e0" }}>
+                <Card sx={{ bgcolor: theme.palette.background.default, color: theme.palette.text.primary }}>
                   <CardContent>
                     <Typography variant="h6" gutterBottom>Your Statistics</Typography>
                     <Typography>Total Posts: {stats.totalPosts}</Typography>
@@ -210,7 +212,7 @@ const DashboardPage = () => {
                 </Card>
               </Grid>
               <Grid item xs={12} md={4}>
-                <Card sx={{ bgcolor: "#3d3d3d", color: "#e0e0e0" }}>
+                <Card sx={{ bgcolor: theme.palette.background.default, color: theme.palette.text.primary }}>
                   <CardContent>
                     <Typography variant="h6" gutterBottom>Engagement Distribution</Typography>
                     <AnalyticsChart type="pie" data={userPieData} isLoading={loading} />
@@ -218,7 +220,7 @@ const DashboardPage = () => {
                 </Card>
               </Grid>
               <Grid item xs={12} md={4}>
-                <Card sx={{ bgcolor: "#3d3d3d", color: "#e0e0e0" }}>
+                <Card sx={{ bgcolor: theme.palette.background.default, color: theme.palette.text.primary }}>
                   <CardContent>
                     <Typography variant="h6" gutterBottom>Activity Breakdown</Typography>
                     <AnalyticsChart type="bar" data={userPieData} isLoading={loading} />

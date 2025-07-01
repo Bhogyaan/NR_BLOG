@@ -16,12 +16,19 @@ import userAtom from "../atoms/userAtom";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import { Brightness4, Brightness7, Palette, Contrast } from "@mui/icons-material";
+import Logo from '../components/Logo';
+import { alpha } from '@mui/material/styles';
 
 const SettingsPage = ({ themeSettings, updateThemeSettings }) => {
   const [user, setUser] = useRecoilState(userAtom);
   const theme = useTheme();
   const isSmallScreen = useMediaQuery("(max-width:600px)");
   const navigate = useNavigate();
+
+  const paperBg = alpha(theme.palette.background.paper, 0.95);
+  const sectionBg = alpha(theme.palette.background.paper, 0.85);
+  const dividerColor = alpha(theme.palette.text.primary, 0.1);
+  const gradient = `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`;
 
   // Custom toast function for this component
   const showToast = (type, message) => {
@@ -58,6 +65,9 @@ const SettingsPage = ({ themeSettings, updateThemeSettings }) => {
     navigate("/auth");
   };
 
+  // If you want to show a logo in SettingsPage, add this logic:
+  // const logoSrc = theme.palette.mode === 'dark' ? '/light-logo.svg' : '/dark-logo.svg';
+
   return (
     <Container
       maxWidth="sm"
@@ -72,10 +82,10 @@ const SettingsPage = ({ themeSettings, updateThemeSettings }) => {
         sx={{
           p: 3,
           borderRadius: 4,
-          background: "rgba(255, 255, 255, 0.05)",
+          background: paperBg,
           backdropFilter: `blur(${themeSettings.glassIntensity}px)`,
           boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
-          border: "1px solid rgba(255, 255, 255, 0.2)",
+          border: `1px solid ${dividerColor}`,
         }}
       >
         <Typography
@@ -84,7 +94,7 @@ const SettingsPage = ({ themeSettings, updateThemeSettings }) => {
           gutterBottom
           sx={{
             fontWeight: 700,
-            background: "linear-gradient(45deg, #8515fc, #8b5cf6)",
+            background: gradient,
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
             mb: 3,
@@ -103,8 +113,8 @@ const SettingsPage = ({ themeSettings, updateThemeSettings }) => {
             sx={{
               p: 2,
               mb: 2,
-              background: "rgba(255, 255, 255, 0.03)",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
+              background: sectionBg,
+              border: `1px solid ${dividerColor}`,
             }}
           >
             <FormControlLabel
@@ -133,8 +143,8 @@ const SettingsPage = ({ themeSettings, updateThemeSettings }) => {
             sx={{
               p: 2,
               mb: 2,
-              background: "rgba(255, 255, 255, 0.03)",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
+              background: sectionBg,
+              border: `1px solid ${dividerColor}`,
             }}
           >
             <Typography variant="subtitle1" gutterBottom sx={{ display: "flex", alignItems: "center" }}>
@@ -157,8 +167,8 @@ const SettingsPage = ({ themeSettings, updateThemeSettings }) => {
           <Paper
             sx={{
               p: 2,
-              background: "rgba(255, 255, 255, 0.03)",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
+              background: sectionBg,
+              border: `1px solid ${dividerColor}`,
             }}
           >
             <FormControlLabel
@@ -178,7 +188,7 @@ const SettingsPage = ({ themeSettings, updateThemeSettings }) => {
           </Paper>
         </Box>
 
-        <Divider sx={{ my: 3, borderColor: "rgba(255, 255, 255, 0.1)" }} />
+        <Divider sx={{ my: 3, borderColor: dividerColor }} />
 
         {/* Account Settings Section */}
         <Box sx={{ mb: 3 }}>

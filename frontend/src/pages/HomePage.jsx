@@ -457,7 +457,7 @@ const HomePage = () => {
           height: "100%",
           display: "flex",
           flexDirection: "column",
-          bgcolor: "background.paper",
+          bgcolor: theme.palette.background.paper,
           borderRadius: "12px",
           border: "1px solid rgba(255, 255, 255, 0.2)",
           overflow: "hidden",
@@ -466,7 +466,7 @@ const HomePage = () => {
         <Box
           sx={{
             p: 1,
-            bgcolor: "primary.main",
+            bgcolor: theme.palette.primary.main,
             color: "white",
             display: "flex",
             alignItems: "center",
@@ -644,7 +644,7 @@ const HomePage = () => {
           left: "50%",
           transform: "translate(-50%, -50%)",
           width: isMediumScreen ? 400 : 500,
-          bgcolor: "background.paper",
+          bgcolor: theme.palette.background.paper,
           p: 2,
           borderRadius: 2,
           maxHeight: "90vh",
@@ -1033,9 +1033,9 @@ const HomePage = () => {
                   width: 56,
                   height: 56,
                   boxShadow: 3,
-                  bgcolor: "primary.main",
+                  bgcolor: theme.palette.primary.main,
                   color: "white",
-                  "&:hover": { bgcolor: "primary.dark" },
+                  "&:hover": { bgcolor: theme.palette.primary.dark },
                 }}
               >
                 <AddIcon />

@@ -59,6 +59,7 @@ import {
   Tooltip as ChartTooltip,
   Legend,
 } from "chart.js";
+import { useTheme } from '@mui/material/styles';
 
 ChartJS.register(
   CategoryScale,
@@ -97,6 +98,7 @@ const AdminProfilePage = () => {
   });
   const [dashboardData, setDashboardData] = useState(null);
   const [dashboardError, setDashboardError] = useState(null);
+  const theme = useTheme();
 
   useEffect(() => {
     if (!socket) {
@@ -321,21 +323,21 @@ const AdminProfilePage = () => {
       {
         label: "Posts",
         data: dashboardData.activityData?.map((d) => d.posts) || [],
-        borderColor: "#8515fe",
+        borderColor: theme.palette.primary.main,
         backgroundColor: "rgba(133, 21, 254, 0.2)",
         fill: true,
       },
       {
         label: "Likes",
         data: dashboardData.activityData?.map((d) => d.likes) || [],
-        borderColor: "#4caf50",
+        borderColor: theme.palette.success.main,
         backgroundColor: "rgba(76, 175, 80, 0.2)",
         fill: true,
       },
       {
         label: "Comments",
         data: dashboardData.activityData?.map((d) => d.comments) || [],
-        borderColor: "#2196f3",
+        borderColor: theme.palette.info.main,
         backgroundColor: "rgba(33, 150, 243, 0.2)",
         fill: true,
       },
@@ -348,7 +350,7 @@ const AdminProfilePage = () => {
       {
         label: "New Users",
         data: dashboardData.userGrowth?.map((d) => d.newUsers) || [],
-        borderColor: "#8515fe",
+        borderColor: theme.palette.primary.main,
         backgroundColor: "rgba(133, 21, 254, 0.2)",
         fill: true,
       },
@@ -373,7 +375,7 @@ const AdminProfilePage = () => {
       legend: {
         position: "top",
         labels: { 
-          color: "#ffffff",
+          color: theme.palette.text.primary,
           font: { size: isSmallScreen ? 10 : 12 },
           padding: isSmallScreen ? 10 : 20,
           boxWidth: isSmallScreen ? 30 : 40,
@@ -382,14 +384,14 @@ const AdminProfilePage = () => {
       },
       title: {
         display: true,
-        color: "#ffffff",
+        color: theme.palette.text.primary,
         font: { size: isSmallScreen ? 14 : 16 },
       },
     },
     scales: {
       x: { 
         ticks: { 
-          color: "#ffffff", 
+          color: theme.palette.text.primary, 
           font: { size: isSmallScreen ? 10 : 12 },
           maxRotation: isSmallScreen ? 45 : 0,
         }, 
@@ -397,7 +399,7 @@ const AdminProfilePage = () => {
       },
       y: { 
         ticks: { 
-          color: "#ffffff", 
+          color: theme.palette.text.primary, 
           font: { size: isSmallScreen ? 10 : 12 } 
         }, 
         grid: { color: "rgba(255, 255, 255, 0.1)" } 
@@ -409,7 +411,7 @@ const AdminProfilePage = () => {
     <ConfigProvider
       theme={{
         token: {
-          colorPrimary: "#8515fe",
+          colorPrimary: theme.palette.primary.main,
           borderRadius: 8,
           fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
         },
@@ -417,10 +419,10 @@ const AdminProfilePage = () => {
     >
       <App>
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
-          <Box sx={{ minHeight: "100vh", px: { xs: 2, sm: 3, md: 4 }, py: { xs: 2, sm: 3 }, bgcolor: "#1a1a1a" }}>
+          <Box sx={{ minHeight: "100vh", px: { xs: 2, sm: 3, md: 4 }, py: { xs: 2, sm: 3 }, bgcolor: theme.palette.background.default }}>
             {/* Admin Header */}
             <Box sx={{ display: "flex", alignItems: "center", mb: { xs: 2, sm: 3 } }}>
-              <Security sx={{ fontSize: { xs: 24, sm: 32 }, color: "#8515fe", mr: 2 }} />
+              <Security sx={{ fontSize: { xs: 24, sm: 32 }, color: theme.palette.primary.main, mr: 2 }} />
               <Typography variant={isSmallScreen ? "h5" : "h4"} sx={{ fontWeight: 700, color: "text.primary" }}>
                 Admin Dashboard
               </Typography>

@@ -17,6 +17,7 @@ import {
   IconButton,
   Tooltip,
   Divider,
+  useTheme,
 } from "@mui/material";
 import { ConfigProvider, App, message } from "antd";
 import userAtom from "../atoms/userAtom";
@@ -51,8 +52,6 @@ import {
 import Post from "../components/Post";
 import AdminProfilePage from "./AdminProfilePage";
 
-const COLORS = ["#8515fe", "#8b5cf6", "#f44336"];
-
 const UserPage = () => {
   const { username } = useParams();
   const [user, setUser] = useState(null);
@@ -69,11 +68,15 @@ const UserPage = () => {
   const { handleFollowUnfollow, updating, following } = useFollowUnfollow(user);
   const socketContext = useSocket();
   const socket = socketContext?.socket;
+  const theme = useTheme();
 
   // Redirect admin to AdminProfilePage if viewing their own profile
   if (currentUser?.isAdmin && currentUser?.username === username) {
     return <AdminProfilePage />;
   }
+
+  // Use theme colors for charts
+  const COLORS = [theme.palette.primary.main, theme.palette.secondary.main, theme.palette.error.main];
 
   useEffect(() => {
     if (!currentUser) {
@@ -307,7 +310,7 @@ const UserPage = () => {
     <ConfigProvider
       theme={{
         token: {
-          colorPrimary: "#8515fe",
+          colorPrimary: theme.palette.primary.main,
           borderRadius: 8,
           fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
         },
@@ -315,13 +318,13 @@ const UserPage = () => {
     >
       <App>
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
-          <Box sx={{ minHeight: "100vh", p: isSmallScreen ? 1 : 3, pb: isSmallScreen ? 8 : 0, bgcolor: "#1a1a1a" }}>
+          <Box sx={{ minHeight: "100vh", p: isSmallScreen ? 1 : 3, pb: isSmallScreen ? 8 : 0, bgcolor: theme.palette.background.default }}>
             {/* Profile Header Card */}
             <Card
               sx={{
                 mb: 3,
                 p: 2,
-                bgcolor: "background.paper",
+                bgcolor: theme.palette.background.paper,
                 borderRadius: "12px",
                 border: "1px solid rgba(255, 255, 255, 0.2)",
                 width: "100%",
@@ -358,7 +361,7 @@ const UserPage = () => {
                     }}
                   >
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      <Typography variant="h6" sx={{ fontWeight: 600, color: "text.primary" }}>
+                      <Typography variant="h6" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
                         {user.username}
                       </Typography>
                       {user.isBanned && (
@@ -382,7 +385,7 @@ const UserPage = () => {
                             <IconButton
                               onClick={handleEditProfile}
                               sx={{
-                                color: "text.primary",
+                                color: theme.palette.text.primary,
                                 bgcolor: "rgba(255, 255, 255, 0.1)",
                                 "&:hover": { bgcolor: "rgba(255, 255, 255, 0.2)" },
                               }}
@@ -394,7 +397,7 @@ const UserPage = () => {
                             <IconButton
                               onClick={handleLogout}
                               sx={{
-                                color: "text.primary",
+                                color: theme.palette.text.primary,
                                 bgcolor: "rgba(255, 255, 255, 0.1)",
                                 "&:hover": { bgcolor: "rgba(255, 255, 255, 0.2)" },
                               }}
@@ -405,23 +408,25 @@ const UserPage = () => {
                         </>
                       ) : (
                         <>
-                          <Button
-                            variant={following ? "outlined" : "contained"}
-                            size="small"
-                            onClick={handleFollowUnfollow}
-                            disabled={updating || user.isBanned}
-                            startIcon={following ? <PersonRemove /> : <PersonAdd />}
-                            sx={{
-                              borderRadius: 20,
-                              textTransform: "none",
-                              bgcolor: following ? "transparent" : "primary.main",
-                              color: following ? "primary.main" : "text.primary",
-                              borderColor: following ? "primary.main" : "transparent",
-                              "&:hover": { bgcolor: following ? "rgba(133, 21, 254, 0.1)" : "#6b12cb" },
-                            }}
-                          >
-                            {following ? "Following" : "Follow"}
-                          </Button>
+                          {currentUser?._id !== user._id && (
+                            <Button
+                              variant={following ? "outlined" : "contained"}
+                              size="small"
+                              onClick={handleFollowUnfollow}
+                              disabled={updating || user.isBanned}
+                              startIcon={following ? <PersonRemove /> : <PersonAdd />}
+                              sx={{
+                                borderRadius: 20,
+                                textTransform: "none",
+                                bgcolor: following ? "transparent" : theme.palette.primary.main,
+                                color: following ? theme.palette.primary.main : theme.palette.text.primary,
+                                borderColor: following ? theme.palette.primary.main : "transparent",
+                                "&:hover": { bgcolor: following ? "rgba(133, 21, 254, 0.1)" : "#6b12cb" },
+                              }}
+                            >
+                              {following ? "Following" : "Follow"}
+                            </Button>
+                          )}
                           {currentUser?.isAdmin && (
                             <Button
                               variant="outlined"
@@ -454,7 +459,7 @@ const UserPage = () => {
                     }}
                   >
                     <Box sx={{ textAlign: "center", minWidth: 60 }}>
-                      <Typography variant="body1" sx={{ fontWeight: 700, color: "text.primary" }}>
+                      <Typography variant="body1" sx={{ fontWeight: 700, color: theme.palette.text.primary }}>
                         {postsState.posts.length}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
@@ -462,7 +467,7 @@ const UserPage = () => {
                       </Typography>
                     </Box>
                     <Box sx={{ textAlign: "center", minWidth: 60 }}>
-                      <Typography variant="body1" sx={{ fontWeight: 700, color: "text.primary" }}>
+                      <Typography variant="body1" sx={{ fontWeight: 700, color: theme.palette.text.primary }}>
                         {user.followers?.length || 0}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
@@ -470,7 +475,7 @@ const UserPage = () => {
                       </Typography>
                     </Box>
                     <Box sx={{ textAlign: "center", minWidth: 60 }}>
-                      <Typography variant="body1" sx={{ fontWeight: 700, color: "text.primary" }}>
+                      <Typography variant="body1" sx={{ fontWeight: 700, color: theme.palette.text.primary }}>
                         {user.following?.length || 0}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
@@ -480,7 +485,7 @@ const UserPage = () => {
                   </Box>
 
                   <Box sx={{ mb: 1 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600, color: "text.primary" }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
                       {user.name}
                     </Typography>
                     <Typography
@@ -501,7 +506,7 @@ const UserPage = () => {
                 position: "sticky",
                 top: 0,
                 zIndex: 1000,
-                bgcolor: "background.paper",
+                bgcolor: theme.palette.background.paper,
                 borderRadius: "12px",
                 overflowX: "auto",
                 width: "100%",
@@ -521,20 +526,22 @@ const UserPage = () => {
                   "& .MuiTab-root": {
                     minWidth: isSmallScreen ? "100px" : "auto",
                     padding: isSmallScreen ? "6px 12px" : "12px 16px",
-                    color: "text.secondary",
-                    "&.Mui-selected": { color: "primary.main" },
+                    color: theme.palette.text.secondary,
+                    "&.Mui-selected": { color: theme.palette.primary.main },
                     whiteSpace: "nowrap",
                     textTransform: "none",
                     fontWeight: 600,
                   },
                   "& .MuiTabs-scrollButtons": {
-                    color: "text.primary",
+                    color: theme.palette.text.primary,
                   },
                 }}
-                TabIndicatorProps={{ style: { backgroundColor: "primary.main" } }}
+                TabIndicatorProps={{ style: { backgroundColor: theme.palette.primary.main } }}
               >
                 <Tab label="Posts" />
-                <Tab label="Bookmarks" icon={isSmallScreen ? <Bookmark fontSize="small" /> : null} />
+                {currentUser?._id === user._id && (
+                  <Tab label="Bookmarks" icon={isSmallScreen ? <Bookmark fontSize="small" /> : null} />
+                )}
                 <Tab label="Followers" />
                 <Tab label="Following" />
                 {currentUser?._id === user._id && (
@@ -549,19 +556,19 @@ const UserPage = () => {
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   {fetchingPosts ? (
                     <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-                      <CircularProgress size={24} sx={{ color: "primary.main" }} />
+                      <CircularProgress size={24} sx={{ color: theme.palette.primary.main }} />
                     </Box>
                   ) : postsState.posts.length === 0 ? (
                     <Card
                       sx={{
                         p: 3,
-                        bgcolor: "background.paper",
+                        bgcolor: theme.palette.background.paper,
                         borderRadius: "12px",
                         border: "1px solid rgba(255, 255, 255, 0.2)",
                         textAlign: "center",
                       }}
                     >
-                      <Typography variant="body1" color="text.primary">
+                      <Typography variant="body1" color={theme.palette.text.primary}>
                         No posts yet
                       </Typography>
                     </Card>
@@ -578,23 +585,23 @@ const UserPage = () => {
                 </Box>
               )}
 
-              {tabValue === 1 && (
+              {tabValue === 1 && currentUser?._id === user._id && (
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   {fetchingBookmarks ? (
                     <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-                      <CircularProgress size={24} sx={{ color: "primary.main" }} />
+                      <CircularProgress size={24} sx={{ color: theme.palette.primary.main }} />
                     </Box>
                   ) : (postsState.bookmarks || []).length === 0 ? (
                     <Card
                       sx={{
                         p: 3,
-                        bgcolor: "background.paper",
+                        bgcolor: theme.palette.background.paper,
                         borderRadius: "12px",
                         border: "1px solid rgba(255, 255, 255, 0.2)",
                         textAlign: "center",
                       }}
                     >
-                      <Typography variant="body1" color="text.primary">
+                      <Typography variant="body1" color={theme.palette.text.primary}>
                         No bookmarked posts yet
                       </Typography>
                     </Card>
@@ -611,19 +618,19 @@ const UserPage = () => {
                 </Box>
               )}
 
-              {tabValue === 2 && (
+              {tabValue === (currentUser?._id === user._id ? 2 : 1) && (
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   {user.followers?.length === 0 ? (
                     <Card
                       sx={{
                         p: 3,
-                        bgcolor: "background.paper",
+                        bgcolor: theme.palette.background.paper,
                         borderRadius: "12px",
                         border: "1px solid rgba(255, 255, 255, 0.2)",
                         textAlign: "center",
                       }}
                     >
-                      <Typography variant="body1" color="text.primary">
+                      <Typography variant="body1" color={theme.palette.text.primary}>
                         No followers yet
                       </Typography>
                     </Card>
@@ -635,19 +642,19 @@ const UserPage = () => {
                 </Box>
               )}
 
-              {tabValue === 3 && (
+              {tabValue === (currentUser?._id === user._id ? 3 : 2) && (
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   {user.following?.length === 0 ? (
                     <Card
                       sx={{
                         p: 3,
-                        bgcolor: "background.paper",
+                        bgcolor: theme.palette.background.paper,
                         borderRadius: "12px",
                         border: "1px solid rgba(255, 255, 255, 0.2)",
                         textAlign: "center",
                       }}
                     >
-                      <Typography variant="body1" color="text.primary">
+                      <Typography variant="body1" color={theme.palette.text.primary}>
                         Not following anyone yet
                       </Typography>
                     </Card>
@@ -661,11 +668,11 @@ const UserPage = () => {
 
               {tabValue === 4 && currentUser?._id === user._id && (
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                  <Typography variant="h6" sx={{ color: "text.primary", fontWeight: 600 }}>
+                  <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
                     Your Activity Dashboard
                   </Typography>
 
-                  <Card sx={{ p: 2, borderRadius: "12px", bgcolor: "background.paper" }}>
+                  <Card sx={{ p: 2, borderRadius: "12px", bgcolor: theme.palette.background.paper }}>
                     <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
                       Engagement Overview
                     </Typography>
@@ -686,10 +693,10 @@ const UserPage = () => {
                         </Pie>
                         <ChartTooltip
                           contentStyle={{
-                            backgroundColor: "background.paper",
+                            backgroundColor: theme.palette.background.paper,
                             borderRadius: 8,
                             border: "1px solid rgba(255, 255, 255, 0.2)",
-                            color: "text.primary",
+                            color: theme.palette.text.primary,
                           }}
                         />
                         <Legend />
@@ -697,21 +704,21 @@ const UserPage = () => {
                     </ResponsiveContainer>
                   </Card>
 
-                  <Card sx={{ p: 2, borderRadius: "12px", bgcolor: "background.paper" }}>
+                  <Card sx={{ p: 2, borderRadius: "12px", bgcolor: theme.palette.background.paper }}>
                     <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
                       Activity Trend
                     </Typography>
                     <ResponsiveContainer width="100%" height={250}>
                       <LineChart data={lineData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.2)" />
-                        <XAxis dataKey="month" stroke="text.secondary" />
-                        <YAxis stroke="text.secondary" />
+                        <XAxis dataKey="month" stroke={theme.palette.text.secondary} />
+                        <YAxis stroke={theme.palette.text.secondary} />
                         <ChartTooltip
                           contentStyle={{
-                            backgroundColor: "background.paper",
+                            backgroundColor: theme.palette.background.paper,
                             borderRadius: 8,
                             border: "1px solid rgba(255, 255, 255, 0.2)",
-                            color: "text.primary",
+                            color: theme.palette.text.primary,
                           }}
                         />
                         <Line
@@ -739,21 +746,21 @@ const UserPage = () => {
                     </ResponsiveContainer>
                   </Card>
 
-                  <Card sx={{ p: 2, borderRadius: "12px", bgcolor: "background.paper" }}>
+                  <Card sx={{ p: 2, borderRadius: "12px", bgcolor: theme.palette.background.paper }}>
                     <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
                       Activity Breakdown
                     </Typography>
                     <ResponsiveContainer width="100%" height={250}>
                       <BarChart data={barData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.2)" />
-                        <XAxis dataKey="month" stroke="text.secondary" />
-                        <YAxis stroke="text.secondary" />
+                        <XAxis dataKey="month" stroke={theme.palette.text.secondary} />
+                        <YAxis stroke={theme.palette.text.secondary} />
                         <ChartTooltip
                           contentStyle={{
-                            backgroundColor: "background.paper",
+                            backgroundColor: theme.palette.background.paper,
                             borderRadius: 8,
                             border: "1px solid rgba(255, 255, 255, 0.2)",
-                            color: "text.primary",
+                            color: theme.palette.text.primary,
                           }}
                         />
                         <Bar dataKey="likes" fill={COLORS[0]} radius={[4, 4, 0, 0]} />
@@ -775,6 +782,9 @@ const UserPage = () => {
 const FollowerCard = ({ followerId, navigate }) => {
   const [follower, setFollower] = useState(null);
   const [loading, setLoading] = useState(true);
+  const theme = useTheme();
+  const currentUser = useRecoilValue(userAtom);
+  const { handleFollowUnfollow, updating, following } = useFollowUnfollow(follower);
 
   useEffect(() => {
     const fetchFollower = async () => {
@@ -801,9 +811,9 @@ const FollowerCard = ({ followerId, navigate }) => {
 
   if (loading) {
     return (
-      <Card sx={{ p: 2, bgcolor: "background.paper", borderRadius: "12px" }}>
+      <Card sx={{ p: 2, bgcolor: theme.palette.background.paper, borderRadius: "12px" }}>
         <Box sx={{ display: "flex", justifyContent: "center" }}>
-          <CircularProgress size={24} sx={{ color: "primary.main" }} />
+          <CircularProgress size={24} sx={{ color: theme.palette.primary.main }} />
         </Box>
       </Card>
     );
@@ -815,7 +825,7 @@ const FollowerCard = ({ followerId, navigate }) => {
     <Card
       sx={{
         p: 2,
-        bgcolor: "background.paper",
+        bgcolor: theme.palette.background.paper,
         borderRadius: "12px",
         border: "1px solid rgba(255, 255, 255, 0.2)",
         "&:hover": { boxShadow: "0 4px 12px rgba(133, 21, 254, 0.2)" },
@@ -843,7 +853,7 @@ const FollowerCard = ({ followerId, navigate }) => {
               variant="subtitle1"
               sx={{
                 fontWeight: 600,
-                color: "text.primary",
+                color: theme.palette.text.primary,
                 cursor: "pointer",
                 "&:hover": { textDecoration: "underline" },
               }}
@@ -866,6 +876,25 @@ const FollowerCard = ({ followerId, navigate }) => {
             />
           )}
         </Box>
+        {currentUser?._id !== follower._id && (
+          <Button
+            variant={following ? "outlined" : "contained"}
+            size="small"
+            onClick={handleFollowUnfollow}
+            disabled={updating || follower.isBanned}
+            sx={{
+              borderRadius: 20,
+              textTransform: "none",
+              bgcolor: following ? "transparent" : theme.palette.primary.main,
+              color: following ? theme.palette.primary.main : theme.palette.text.primary,
+              borderColor: following ? theme.palette.primary.main : "transparent",
+              minWidth: 100,
+              "&:hover": { bgcolor: following ? "rgba(133, 21, 254, 0.1)" : "#6b12cb" },
+            }}
+          >
+            {following ? "Following" : "Follow"}
+          </Button>
+        )}
       </Box>
     </Card>
   );
@@ -874,6 +903,9 @@ const FollowerCard = ({ followerId, navigate }) => {
 const FollowingCard = ({ followingId, navigate }) => {
   const [followingUser, setFollowingUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const theme = useTheme();
+  const currentUser = useRecoilValue(userAtom);
+  const { handleFollowUnfollow, updating, following } = useFollowUnfollow(followingUser);
 
   useEffect(() => {
     const fetchFollowing = async () => {
@@ -900,9 +932,9 @@ const FollowingCard = ({ followingId, navigate }) => {
 
   if (loading) {
     return (
-      <Card sx={{ p: 2, bgcolor: "background.paper", borderRadius: "12px" }}>
+      <Card sx={{ p: 2, bgcolor: theme.palette.background.paper, borderRadius: "12px" }}>
         <Box sx={{ display: "flex", justifyContent: "center" }}>
-          <CircularProgress size={24} sx={{ color: "primary.main" }} />
+          <CircularProgress size={24} sx={{ color: theme.palette.primary.main }} />
         </Box>
       </Card>
     );
@@ -914,7 +946,7 @@ const FollowingCard = ({ followingId, navigate }) => {
     <Card
       sx={{
         p: 2,
-        bgcolor: "background.paper",
+        bgcolor: theme.palette.background.paper,
         borderRadius: "12px",
         border: "1px solid rgba(255, 255, 255, 0.2)",
         "&:hover": { boxShadow: "0 4px 12px rgba(133, 21, 254, 0.2)" },
@@ -942,7 +974,7 @@ const FollowingCard = ({ followingId, navigate }) => {
               variant="subtitle1"
               sx={{
                 fontWeight: 600,
-                color: "text.primary",
+                color: theme.palette.text.primary,
                 cursor: "pointer",
                 "&:hover": { textDecoration: "underline" },
               }}
@@ -965,6 +997,25 @@ const FollowingCard = ({ followingId, navigate }) => {
             />
           )}
         </Box>
+        {currentUser?._id !== followingUser._id && (
+          <Button
+            variant={following ? "outlined" : "contained"}
+            size="small"
+            onClick={handleFollowUnfollow}
+            disabled={updating || followingUser.isBanned}
+            sx={{
+              borderRadius: 20,
+              textTransform: "none",
+              bgcolor: following ? "transparent" : theme.palette.primary.main,
+              color: following ? theme.palette.primary.main : theme.palette.text.primary,
+              borderColor: following ? theme.palette.primary.main : "transparent",
+              minWidth: 100,
+              "&:hover": { bgcolor: following ? "rgba(133, 21, 254, 0.1)" : "#6b12cb" },
+            }}
+          >
+            {following ? "Following" : "Follow"}
+          </Button>
+        )}
       </Box>
     </Card>
   );

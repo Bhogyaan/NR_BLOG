@@ -20,6 +20,7 @@ import { MdOutlineSettings, MdOutlineDashboard } from 'react-icons/md';
 import { motion } from 'framer-motion';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
+import Logo from './Logo';
 
 const Header = () => {
   const user = useRecoilValue(userAtom);
@@ -27,6 +28,7 @@ const Header = () => {
   const setAuthScreen = useSetRecoilState(authScreenAtom);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const logoSrc = theme.palette.mode === 'dark' ? '/light-logo.svg' : '/dark-logo.svg';
 
   return (
     <motion.div
@@ -39,14 +41,18 @@ const Header = () => {
         justifyContent="space-between"
         alignItems="center"
         p={2}
-        bgcolor={isMobile ? 'blue' : 'transparent'}
+        bgcolor={theme.palette.background.default}
+        color={theme.palette.text.primary}
         flexDirection={isMobile ? 'column' : 'row'}
         sx={{
           background: isMobile
-            ? 'linear-gradient(to bottom, blue, purple)'
+            ? 'linear-gradient(to bottom, var(--color-primary), var(--color-secondary))'
             : 'none',
         }}
       >
+        <Box display="flex" alignItems="center" gap={2}>
+          <Logo size={36} />
+        </Box>
         {user ? (
           <Box display="flex" alignItems="center" gap={2}>
             <IconButton component={RouterLink} to="/">

@@ -39,6 +39,7 @@ import {
   BsFilePptFill,
   BsFileTextFill,
 } from "react-icons/bs";
+import { useTheme } from '@mui/material/styles';
 
 const AdminHomepage = () => {
   const [posts, setPosts] = useRecoilState(postsAtom);
@@ -50,6 +51,7 @@ const AdminHomepage = () => {
   const currentUser = useRecoilValue(userAtom);
   const navigate = useNavigate();
   const { socket } = useContext(SocketContext);
+  const theme = useTheme();
 
   const fetchPosts = useCallback(async () => {
     try {
@@ -364,9 +366,9 @@ const AdminHomepage = () => {
           maxWidth: "600px",
           minHeight: { xs: "auto", sm: "350px", md: "400px" },
           mx: { xs: 0, sm: "auto" },
-          background: "rgba(255, 255, 255, 0.2)",
+          background: theme.palette.background.default,
           borderRadius: "16px",
-          border: "1px solid rgba(255, 255, 255, 0.2)",
+          border: `1px solid ${theme.palette.divider}`,
           padding: { xs: 1, sm: 2, md: 2.5 },
           boxShadow: "0 4px 30px rgba(0, 0, 0, 0.1)",
           display: "flex",
@@ -382,9 +384,9 @@ const AdminHomepage = () => {
               position: "absolute",
               top: 10,
               left: 10,
-              color: "red",
+              color: theme.palette.error.main,
               fontWeight: "bold",
-              backgroundColor: "rgba(255, 255, 255, 0.7)",
+              backgroundColor: theme.palette.background.paper,
               padding: 1,
               borderRadius: 2,
               zIndex: 10,
@@ -409,7 +411,7 @@ const AdminHomepage = () => {
               <Typography
                 variant="body2"
                 fontWeight="bold"
-                color="text.primary"
+                color={theme.palette.text.primary}
                 sx={{ cursor: "pointer" }}
                 onClick={() => navigate(`/${post.postedBy?.username}`)}
               >
@@ -417,7 +419,7 @@ const AdminHomepage = () => {
               </Typography>
               <Typography
                 variant="caption"
-                color="text.secondary"
+                color={theme.palette.text.secondary}
                 sx={{ fontSize: "0.75rem" }}
               >
                 {formatDistanceToNow(new Date(post.createdAt))} ago
@@ -427,7 +429,7 @@ const AdminHomepage = () => {
           </Box>
           <IconButton
             onClick={(e) => handleMoreClick(e, post)}
-            sx={{ color: "text.primary", fontSize: { xs: "20px", sm: "24px" } }}
+            sx={{ color: theme.palette.text.primary, fontSize: { xs: "20px", sm: "24px" } }}
           >
             <MoreVert />
           </IconButton>
@@ -436,7 +438,7 @@ const AdminHomepage = () => {
         <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: 2, flex: 1 }}>
           <Typography
             variant="body2"
-            color="text.primary"
+            color={theme.palette.text.primary}
             sx={{
               fontSize: { xs: "0.875rem", sm: "1rem" },
               wordBreak: "break-word",
@@ -493,7 +495,7 @@ const AdminHomepage = () => {
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     {getDocumentIcon(getFileName(post))}
                     <Typography
-                      color="text.primary"
+                      color={theme.palette.text.primary}
                       sx={{ fontSize: { xs: "14px", sm: "16px" }, wordBreak: "break-word", textAlign: "center" }}
                     >
                       {getFileName(post)}
@@ -564,7 +566,7 @@ const AdminHomepage = () => {
       {posts.posts?.length > 0 ? (
         posts.posts.map((post) => renderPost(post))
       ) : (
-        <Typography textAlign="center" color="text.secondary">
+        <Typography textAlign="center" color={theme.palette.text.secondary}>
           No posts available.
         </Typography>
       )}
@@ -622,13 +624,13 @@ const AdminHomepage = () => {
             width: { xs: "100%", sm: "90%", md: "600px" },
             maxWidth: "800px",
             maxHeight: { xs: "70vh", sm: "80vh" },
-            backgroundColor: "rgba(255, 255, 255, 0.2)",
+            backgroundColor: theme.palette.background.paper,
             backdropFilter: "blur(10px)",
             borderTopLeftRadius: { xs: 16, sm: 8 },
             borderTopRightRadius: { xs: 16, sm: 8 },
             borderBottomLeftRadius: { xs: 0, sm: 8 },
             borderBottomRightRadius: { xs: 0, sm: 8 },
-            border: "1px solid rgba(255, 255, 255, 0.2)",
+            border: `1px solid ${theme.palette.divider}`,
             padding: { xs: 1.5, sm: 2, md: 3 },
             overflowY: "auto",
             boxShadow: "0 4px 30px rgba(0, 0, 0, 0.2)",
@@ -637,7 +639,7 @@ const AdminHomepage = () => {
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
             <Typography
               variant="h6"
-              color="text.primary"
+              color={theme.palette.text.primary}
               sx={{ fontSize: { xs: "1rem", sm: "1.25rem" } }}
             >
               Comments
@@ -645,7 +647,7 @@ const AdminHomepage = () => {
             <Button
               variant="text"
               sx={{
-                color: "text.primary",
+                color: theme.palette.text.primary,
                 fontSize: "14px",
               }}
               onClick={() => {
@@ -678,13 +680,13 @@ const AdminHomepage = () => {
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 sx={{
-                  backgroundColor: "rgba(255, 255, 255, 0.3)",
+                  backgroundColor: theme.palette.background.paper,
                   backdropFilter: "blur(5px)",
-                  input: { color: "text.primary" },
+                  input: { color: theme.palette.text.primary },
                   "& .MuiOutlinedInput-root": {
-                    "& fieldset": { borderColor: "rgba(255, 255, 255, 0.3)" },
-                    "&:hover fieldset": { borderColor: "rgba(255, 255, 255, 0.5)" },
-                    "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                    "& fieldset": { borderColor: theme.palette.divider },
+                    "&:hover fieldset": { borderColor: theme.palette.divider },
+                    "&.Mui-focused fieldset": { borderColor: theme.palette.primary.main },
                   },
                   fontSize: { xs: "0.875rem", sm: "1rem" },
                 }}
@@ -694,10 +696,10 @@ const AdminHomepage = () => {
               variant="contained"
               onClick={() => handleAddComment(selectedPost?._id)}
               sx={{
-                color: "primary.main",
-                backgroundColor: "rgba(255, 255, 255, 0.3)",
+                color: theme.palette.primary.main,
+                backgroundColor: theme.palette.background.paper,
                 backdropFilter: "blur(5px)",
-                "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.5)" },
+                "&:hover": { backgroundColor: theme.palette.background.default },
                 fontSize: { xs: "0.875rem", sm: "1rem" },
                 paddingX: { xs: 1, sm: 2 },
               }}
@@ -719,7 +721,7 @@ const AdminHomepage = () => {
             ))
           ) : (
             <Typography
-              color="text.primary"
+              color={theme.palette.text.primary}
               textAlign="center"
               sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}
             >

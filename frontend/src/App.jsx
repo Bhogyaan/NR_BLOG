@@ -19,6 +19,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { FaCheckCircle, FaInfoCircle, FaExclamationTriangle, FaTimesCircle } from "react-icons/fa";
+import { getPalette } from "./theme";
 
 // Improved lazy loading with error boundaries
 const lazyWithRetry = (componentImport) => {
@@ -49,66 +50,59 @@ const AdminProfilePage = lazyWithRetry(() => import("./pages/AdminProfilePage"))
 const NotFoundPage = lazyWithRetry(() => import("./pages/NotFoundPage"));
 
 // Base theme configuration with glassmorphism support
-const getDesignTokens = (mode, glassIntensity = 10, highContrastText = false) => ({
-  palette: {
-    mode,
-    primary: { main: mode === "dark" ? "#8515fc" : "#6200ea" },
-    secondary: { main: mode === "dark" ? "#8b5cf6" : "#7c4dff" },
-    background: {
-      default: mode === "dark" ? "#1a1a1a" : "#f5f5f5",
-      paper: mode === "dark" ? "rgba(30, 30, 30, 0.5)" : "rgba(255, 255, 255, 0.7)",
+const getDesignTokens = (mode, glassIntensity = 10, highContrastText = false) => {
+  const palette = getPalette(mode);
+  return {
+    palette: {
+      mode,
+      primary: { main: palette.primary },
+      secondary: { main: palette.secondary },
+      background: palette.background,
+      text: palette.text,
+      accent: palette.accent,
+      border: palette.border,
     },
-    text: {
-      primary: highContrastText
-        ? mode === "dark" ? "rgba(255, 255, 255, 0.95)" : "rgba(0, 0, 0, 0.95)"
-        : mode === "dark" ? "#ffffff" : "#121212",
-      secondary: mode === "dark" ? "rgba(255, 255, 255, 0.7)" : "rgba(0, 0, 0, 0.6)",
+    typography: {
+      fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
     },
-  },
-  typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
-  },
-  components: {
-    MuiPaper: {
-      styleOverrides: {
-        root: {
-          borderRadius: "16px",
-          border: mode === "dark" ? "1px solid rgba(255, 255, 255, 0.2)" : "1px solid rgba(0, 0, 0, 0.1)",
-          background: mode === "dark"
-            ? "linear-gradient(135deg, rgba(133, 21, 252, 0.1), rgba(30, 30, 30, 0.5))"
-            : "linear-gradient(135deg, rgba(98, 0, 234, 0.1), rgba(255, 255, 255, 0.7))",
-          backdropFilter: `blur(${glassIntensity}px)`,
-          boxShadow: mode === "dark"
-            ? "0 8px 32px rgba(0, 0, 0, 0.3)"
-            : "0 8px 32px rgba(0, 0, 0, 0.1)",
-        },
-      },
-    },
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: "none",
-          background: mode === "dark"
-            ? "linear-gradient(45deg, #8515fc, #8b5cf6)"
-            : "linear-gradient(45deg, #6200ea, #7c4dff)",
-          color: "white",
-          "&:hover": {
+    components: {
+      MuiPaper: {
+        styleOverrides: {
+          root: {
+            borderRadius: "16px",
+            border: `1px solid ${palette.border}`,
+            background: palette.background.paper,
+            backdropFilter: `blur(${glassIntensity}px)`,
             boxShadow: mode === "dark"
-              ? "0 4px 20px rgba(133, 21, 252, 0.3)"
-              : "0 4px 20px rgba(98, 0, 234, 0.2)",
+              ? "0 8px 32px rgba(0, 0, 0, 0.3)"
+              : "0 8px 32px rgba(0, 0, 0, 0.1)",
           },
-        }
+        },
       },
-    },
-    MuiBackdrop: {
-      styleOverrides: {
-        root: {
-          backdropFilter: `blur(${glassIntensity / 2}px)`,
+      MuiButton: {
+        styleOverrides: {
+          root: {
+            textTransform: "none",
+            background: `linear-gradient(45deg, ${palette.primary}, ${palette.secondary})`,
+            color: "white",
+            "&:hover": {
+              boxShadow: mode === "dark"
+                ? `0 4px 20px ${palette.accent}33`
+                : `0 4px 20px ${palette.primary}22`,
+            },
+          }
+        },
+      },
+      MuiBackdrop: {
+        styleOverrides: {
+          root: {
+            backdropFilter: `blur(${glassIntensity / 2}px)`,
+          },
         },
       },
     },
-  },
-});
+  };
+};
 
 // Custom toast icons
 const toastIcons = {
@@ -176,6 +170,7 @@ function App() {
   useEffect(() => {
     localStorage.setItem("themeSettings", JSON.stringify(themeSettings));
     document.documentElement.style.setProperty("--glass-intensity", `${themeSettings.glassIntensity}px`);
+    document.documentElement.setAttribute('data-theme', themeSettings.darkMode); // Set data-theme for CSS variables
   }, [themeSettings]);
 
   // Create theme with current settings

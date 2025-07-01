@@ -21,6 +21,11 @@ import {
   Share,
   Block,
   CheckCircle,
+  ThumbUp,
+  Comment as CommentIcon,
+  Bookmark,
+  Send,
+  Close as CloseIcon,
 } from "@mui/icons-material";
 import { formatDistanceToNow } from "date-fns";
 import { message } from "antd";
@@ -39,7 +44,6 @@ import {
 } from "react-icons/bs";
 import CommentItem from "./CommentItem";
 import { SocketContext } from "../context/SocketContext";
-import { ThumbUp, Comment as CommentIcon, Bookmark } from "@mui/icons-material";
 
 const Post = ({ post, postedBy, isAdminView = false }) => {
   const [user, setUser] = useState(null);
@@ -749,15 +753,29 @@ const Post = ({ post, postedBy, isAdminView = false }) => {
               <Button
                 variant="text"
                 sx={{
-                  color: "#000000", // Black for Close button
-                  fontSize: "14px",
+                  fontSize: '14px',
+                  color: '#fff',
+                  borderColor: '#8515fe',
+                  borderRadius: '18px',
+                  px: 2,
+                  fontWeight: 600,
+                  border: '1.5px solid #8515fe',
+                  transition: 'background 0.2s, color 0.2s',
+                  '&:hover': { bgcolor: 'rgba(133,21,254,0.08)', color: '#6b12cb', borderColor: '#6b12cb' },
+                  minWidth: 0,
+                  width: 40,
+                  height: 40,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  p: 0,
                 }}
                 onClick={() => {
                   setCommentModalOpen(false);
                   setNewComment("");
                 }}
               >
-                Close
+                <CloseIcon sx={{ color: '#fff' }} />
               </Button>
             </Box>
             {currentUser && !currentUser.isAdmin && (
@@ -782,32 +800,45 @@ const Post = ({ post, postedBy, isAdminView = false }) => {
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
                     sx={{
-                      backgroundColor: "rgba(255, 255, 255, 0.3)",
-                      backdropFilter: "blur(5px)",
-                      "& .MuiOutlinedInput-input": { color: "#000000" }, // Black for input text
-                      "& .MuiInputLabel-root": { color: "#1C2526" }, // Dark gray for label
-                      "& .MuiOutlinedInput-root": {
-                        "& fieldset": { borderColor: "rgba(255, 255, 255, 0.3)" },
-                        "&:hover fieldset": { borderColor: "rgba(255, 255, 255, 0.5)" },
-                        "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: '24px',
+                        bgcolor: 'rgba(255,255,255,0.18)',
+                        boxShadow: '0 2px 8px rgba(133, 21, 254, 0.08)',
+                        backdropFilter: 'blur(6px)',
+                        WebkitBackdropFilter: 'blur(6px)',
+                        border: '1.5px solid #eee',
+                        transition: 'border-color 0.2s, box-shadow 0.2s',
+                        '& fieldset': { border: '1.5px solid #eee' },
+                        '&:hover fieldset': { borderColor: '#8515fe' },
+                        '&.Mui-focused fieldset': { borderColor: '#8515fe', boxShadow: '0 0 0 2px rgba(133,21,254,0.08)' },
                       },
-                      fontSize: { xs: "0.875rem", sm: "1rem" },
+                      '& .MuiInputBase-input': { fontSize: '15px', py: 1.2 },
                     }}
                   />
                 </Box>
                 <Button
-                  variant="contained"
                   onClick={handleAddComment}
+                  variant="contained"
                   sx={{
-                    color: "#000000", // Black for Post button text
-                    backgroundColor: "rgba(255, 255, 255, 0.3)",
-                    backdropFilter: "blur(5px)",
-                    "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.5)" },
-                    fontSize: { xs: "0.875rem", sm: "1rem" },
-                    paddingX: { xs: 1, sm: 2 },
+                    fontSize: '14px',
+                    color: '#fff',
+                    fontWeight: '600',
+                    borderRadius: '24px',
+                    px: 2.5,
+                    bgcolor: '#8515fe',
+                    boxShadow: '0 2px 8px rgba(133, 21, 254, 0.10)',
+                    transition: 'background 0.2s',
+                    '&:hover': { bgcolor: '#6b12cb' },
+                    minWidth: 0,
+                    width: 40,
+                    height: 40,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    p: 0,
                   }}
                 >
-                  Post
+                  <Send />
                 </Button>
               </Box>
             )}

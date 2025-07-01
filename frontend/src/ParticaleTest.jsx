@@ -1,23 +1,30 @@
 import React, { useCallback } from 'react';
 import Particles from '@tsparticles/react';
 import { loadFull } from 'tsparticles';
+import { useTheme } from '@mui/material';
 
 const ParticleTest = () => {
+  const theme = useTheme();
   const particlesInit = useCallback(async (engine) => {
     await loadFull(engine);
   }, []);
 
+  // Use theme colors
+  const bgColor = theme.palette.background.default;
+  const particleColors = [theme.palette.primary.main, theme.palette.secondary.main, theme.palette.text.secondary];
+  const lineColor = theme.palette.text.secondary;
+
   const particlesOptions = {
     fullScreen: { enable: true, zIndex: -1 },
     background: {
-      color: '#1A202C',
+      color: bgColor,
     },
     particles: {
       number: {
         value: 80,
         density: { enable: true, value_area: 800 },
       },
-      color: { value: ['#4A90E2', '#D4A017', '#A0AEC0'] },
+      color: { value: particleColors },
       shape: { type: 'circle' },
       opacity: {
         value: 0.5,
@@ -30,7 +37,7 @@ const ParticleTest = () => {
       line_linked: {
         enable: true,
         distance: 150,
-        color: '#A0AEC0',
+        color: lineColor,
         opacity: 0.4,
         width: 1,
       },

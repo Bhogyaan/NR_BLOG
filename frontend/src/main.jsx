@@ -19,20 +19,20 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { FaCheckCircle, FaInfoCircle, FaExclamationTriangle, FaTimesCircle } from "react-icons/fa";
 
+import { getPalette } from "./theme";
+
+// Use palette from theme.js for initial theme
+const palette = getPalette("dark"); // Default to dark, can be dynamic
+
 // Custom MUI theme
 const muiTheme = createTheme({
   palette: {
     mode: "dark",
     primary: {
-      main: "#9b59b6",
+      main: palette.primary,
     },
-    background: {
-      default: "#1e272e",
-      paper: "#263238",
-    },
-    text: {
-      primary: "#ffffff",
-    },
+    background: palette.background,
+    text: palette.text,
   },
   typography: {
     fontFamily: "Roboto, sans-serif",
@@ -42,9 +42,9 @@ const muiTheme = createTheme({
 // Ant Design theme config
 const antThemeConfig = {
   token: {
-    colorPrimary: "#9b59b6",
-    colorBgBase: "#1e272e",
-    colorTextBase: "#ffffff",
+    colorPrimary: palette.primary,
+    colorBgBase: palette.background.default,
+    colorTextBase: palette.text.primary,
   },
 };
 

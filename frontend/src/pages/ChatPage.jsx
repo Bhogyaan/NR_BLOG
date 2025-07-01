@@ -27,9 +27,10 @@ import {
 } from "../atoms/messagesAtom";
 import userAtom from "../atoms/userAtom";
 import { useSocket } from "../context/SocketContext";
+import { useTheme } from '@mui/material/styles';
 
 const ConversationItem = React.memo(
-  ({ conversation, selectedConversation, setSelectedConversation, onlineUsers }) => {
+  ({ conversation, selectedConversation, setSelectedConversation, onlineUsers, theme }) => {
     if (!conversation?.participants?.[0]?._id || !conversation.lastMessage) {
       console.warn("Invalid conversation skipped:", conversation);
       return null;
@@ -44,11 +45,18 @@ const ConversationItem = React.memo(
       >
         <ListItem
           sx={{
-            "&:hover": { bgcolor: "#2a2a2a" },
+            "&:hover": { bgcolor: theme.palette.primary.light },
             py: { xs: 1, sm: 1.2, md: 1.5 },
             cursor: "pointer",
             bgcolor:
-              selectedConversation._id === conversation._id ? "#333333" : "transparent",
+              selectedConversation._id === conversation._id
+                ? theme.palette.primary.main
+                : "transparent",
+            color:
+              selectedConversation._id === conversation._id
+                ? theme.palette.getContrastText(theme.palette.primary.main)
+                : theme.palette.text.primary,
+            transition: "background 0.2s, color 0.2s",
           }}
           onClick={() =>
             setSelectedConversation({
@@ -86,6 +94,7 @@ const ConversationItem = React.memo(
                     whiteSpace: "nowrap",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
+                    color: selectedConversation._id === conversation._id ? theme.palette.getContrastText(theme.palette.primary.main) : theme.palette.text.primary,
                   }}
                 >
                   {conversation.participants[0].username}
@@ -94,7 +103,7 @@ const ConversationItem = React.memo(
                   <Badge
                     badgeContent={conversation.unreadCount}
                     color="primary"
-                    sx={{ "& .MuiBadge-badge": { bgcolor: "#8515fe" } }}
+                    sx={{ "& .MuiBadge-badge": { bgcolor: theme.palette.primary.main } }}
                   />
                 )}
               </Box>
@@ -103,15 +112,14 @@ const ConversationItem = React.memo(
               <Typography
                 noWrap
                 variant="body2"
-                color="#b0b0b0"
+                color={selectedConversation._id === conversation._id ? theme.palette.getContrastText(theme.palette.primary.main) : theme.palette.text.secondary}
                 sx={{
                   fontSize: { xs: "0.7rem", sm: "0.75rem", md: "0.875rem" },
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                 }}
               >
-                {conversation.lastMessage.text || "No messages yet"}{" "}
-                {conversation.lastMessage.seen ? "" : "•"}
+                {conversation.lastMessage.text || "No messages yet"} {conversation.lastMessage.seen ? "" : "•"}
               </Typography>
             }
           />
@@ -133,6 +141,7 @@ const ChatPage = () => {
   const isSmall = useMediaQuery("(max-width:600px)");
   const isMedium = useMediaQuery("(min-width:601px) and (max-width:960px)");
   const [notification, setNotification] = useState(null);
+  const theme = useTheme();
 
   useEffect(() => {
     if (!socket) {
@@ -460,7 +469,7 @@ const ChatPage = () => {
           height: `calc(100vh - ${navHeight}px)`,
           display: "flex",
           flexDirection: isSmall ? "column" : "row",
-          bgcolor: "#1a1a1a",
+          bgcolor: theme.palette.background.default,
           overflow: "hidden",
         }}
       >
@@ -470,16 +479,16 @@ const ChatPage = () => {
             height: isSmall ? "auto" : `calc(100vh - ${navHeight}px)`,
             display: isSmall && selectedConversation._id ? "none" : "flex",
             flexDirection: "column",
-            bgcolor: "#222222",
-            borderRight: isSmall ? "none" : "1px solid #333333",
+            bgcolor: theme.palette.background.paper,
+            borderRight: isSmall ? "none" : `1px solid ${theme.palette.divider}`,
             overflow: "hidden",
           }}
         >
           <Box
             sx={{
               p: { xs: 1.5, sm: 2, md: 2.5 },
-              bgcolor: "#8515fe",
-              color: "white",
+              bgcolor: theme.palette.primary.main,
+              color: theme.palette.getContrastText(theme.palette.primary.main),
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -510,14 +519,14 @@ const ChatPage = () => {
                     </InputAdornment>
                   ),
                   sx: {
-                    bgcolor: "#2e2e2e",
+                    bgcolor: theme.palette.background.paper,
                     borderRadius: 20,
                     "& fieldset": { border: "none" },
                     color: "#8515fe",
                     "& input": { fontSize: { xs: "0.85rem", sm: "0.9rem", md: "1rem" } },
                   },
                 }}
-                sx={{ bgcolor: "#2e2e2e", borderRadius: 20 }}
+                sx={{ bgcolor: theme.palette.background.paper, borderRadius: 20 }}
                 aria-label="Search for chats"
               />
             </form>
@@ -576,6 +585,7 @@ const ChatPage = () => {
                     selectedConversation={selectedConversation}
                     setSelectedConversation={setSelectedConversation}
                     onlineUsers={onlineUsers}
+                    theme={theme}
                   />
                 ))}
               </List>
@@ -589,7 +599,7 @@ const ChatPage = () => {
               display: "flex",
               flexDirection: "column",
               height: `calc(100vh - ${navHeight}px)`,
-              bgcolor: "#1a1a1a",
+              bgcolor: theme.palette.background.default,
               overflow: "hidden",
             }}
           >
@@ -655,12 +665,12 @@ const ChatPage = () => {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              bgcolor: "#1a1a1a",
+              bgcolor: theme.palette.background.default,
               height: `calc(100vh - ${navHeight}px)`,
             }}
           >
             <Typography
-              color="#8515fe"
+              color={theme.palette.primary.main}
               sx={{ fontSize: { xs: "0.9rem", sm: "1rem", md: "1.25rem" } }}
             >
               Select a chat to start messaging

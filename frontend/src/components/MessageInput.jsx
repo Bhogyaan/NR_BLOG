@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from "react";
-import { Box, IconButton, InputAdornment, TextField, CircularProgress, Typography } from "@mui/material";
+import { Box, IconButton, InputAdornment, TextField, CircularProgress, Typography, Paper, Fade } from "@mui/material";
 import { IoSendSharp } from "react-icons/io5";
 import { BsFillImageFill } from "react-icons/bs";
 import { Description as DescriptionIcon, Close as CloseIcon } from "@mui/icons-material";
@@ -9,6 +9,7 @@ import { useRecoilValue, useSetRecoilState } from "recoil";
 import usePreviewImg from "../hooks/usePreviewImg";
 import { motion } from "framer-motion";
 import { useSocket } from "../context/SocketContext";
+import { useTheme } from "@mui/material/styles";
 
 const MessageInput = () => {
   const [messageText, setMessageText] = useState("");
@@ -23,6 +24,7 @@ const MessageInput = () => {
   const [isSending, setIsSending] = useState(false);
   const { socket } = useSocket();
   const typingTimeoutRef = useRef(null);
+  const theme = useTheme();
 
   useEffect(() => {
     if (!socket || !selectedConversation._id || selectedConversation.mock) return;
@@ -222,91 +224,193 @@ const MessageInput = () => {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
-      style={{ flexShrink: 0, padding: 8 }}
+    <Box
+      sx={{
+        width: "100%",
+        position: "sticky",
+        bottom: 0,
+        zIndex: 10,
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        pb: { xs: 1, sm: 2 },
+        pt: 1,
+        bgcolor: "transparent",
+      }}
     >
-      {mediaUrl && (
-        <Box
-          sx={{
-            mb: 1,
-            p: 1,
-            bgcolor: "#2e2e2e",
-            borderRadius: 20,
-            border: "1px solid #444444",
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-          }}
-        >
-          {renderMediaPreview()}
-          <IconButton onClick={handleCancelMedia} sx={{ color: "#8515fe" }}>
-            <CloseIcon />
-          </IconButton>
-        </Box>
-      )}
-      <Box
+      <Paper
+        elevation={4}
+        component={motion.form}
+        onSubmit={handleSendMessage}
+        initial={{ y: 30, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.3, type: "spring", bounce: 0.2 }}
         sx={{
           display: "flex",
           alignItems: "center",
-          gap: 1,
-          bgcolor: "#2e2e2e",
-          borderRadius: 20,
-          p: 1,
-          border: "1px solid #444444",
-          boxShadow: "0 2px 4px rgba(0, 0, 0, 0.5)",
+          width: { xs: "98%", sm: "80%", md: "60%" },
+          px: 2,
+          py: 1.2,
+          borderRadius: 999,
+          boxShadow: theme.shadows[5],
+          bgcolor: theme.palette.mode === "dark"
+            ? "rgba(30,30,40,0.85)"
+            : "rgba(255,255,255,0.85)",
+          border: `1.5px solid ${theme.palette.primary.main}22`,
+          backdropFilter: "blur(8px)",
+          position: "relative",
         }}
       >
+        {/* Media Preview */}
+        {mediaUrl && (
+          <Fade in={!!mediaUrl}>
+            <Box
+              sx={{
+                mr: 2,
+                display: "flex",
+                alignItems: "center",
+                position: "relative",
+                minWidth: 60,
+                minHeight: 40,
+              }}
+            >
+              {mediaType === "image" && (
+                <Box
+                  component="img"
+                  src={mediaUrl}
+                  alt="Preview"
+                  sx={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 2,
+                    objectFit: "cover",
+                    boxShadow: theme.shadows[2],
+                  }}
+                />
+              )}
+              {mediaType === "video" && (
+                <Box
+                  component="video"
+                  src={mediaUrl}
+                  controls
+                  sx={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 2,
+                    objectFit: "cover",
+                    boxShadow: theme.shadows[2],
+                  }}
+                />
+              )}
+              {mediaType === "audio" && (
+                <Box
+                  component="audio"
+                  src={mediaUrl}
+                  controls
+                  sx={{ width: 48, height: 32, borderRadius: 2, bgcolor: theme.palette.background.paper }}
+                />
+              )}
+              <IconButton
+                size="small"
+                onClick={handleCancelMedia}
+                sx={{
+                  position: "absolute",
+                  top: -10,
+                  right: -10,
+                  bgcolor: theme.palette.error.main,
+                  color: "#fff",
+                  boxShadow: theme.shadows[1],
+                  '&:hover': { bgcolor: theme.palette.error.dark },
+                }}
+                aria-label="Remove media"
+              >
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          </Fade>
+        )}
+        {/* Upload Buttons */}
         <IconButton
           onClick={() => imageRef.current.click()}
-          sx={{ color: "#8515fe", p: 0.5 }}
+          sx={{
+            color: theme.palette.primary.main,
+            bgcolor: theme.palette.action.hover,
+            mr: 1,
+            transition: "background 0.2s, color 0.2s",
+            '&:hover': { bgcolor: theme.palette.primary.light, color: '#fff' },
+          }}
           aria-label="Upload media"
         >
-          <BsFillImageFill size={20} />
+          <BsFillImageFill size={22} />
         </IconButton>
         <IconButton
           onClick={() => docRef.current.click()}
-          sx={{ color: "#8515fe", p: 0.5 }}
+          sx={{
+            color: theme.palette.primary.main,
+            bgcolor: theme.palette.action.hover,
+            mr: 1,
+            transition: "background 0.2s, color 0.2s",
+            '&:hover': { bgcolor: theme.palette.primary.light, color: '#fff' },
+          }}
           aria-label="Upload document"
         >
           <DescriptionIcon fontSize="small" />
         </IconButton>
-        <form onSubmit={handleSendMessage} style={{ flex: 1 }}>
-          <TextField
-            fullWidth
-            size="small"
-            placeholder="Type a message..."
-            value={messageText}
-            onChange={(e) => setMessageText(e.target.value)}
-            disabled={isSending}
-            sx={{
-              bgcolor: "#3a3a3a",
-              borderRadius: 20,
-              "& fieldset": { border: "none" },
-              "& input": { color: "#b0b0b0", fontSize: { xs: "0.875rem", sm: "1rem" } },
-            }}
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position="end">
+        {/* Message Input */}
+        <TextField
+          fullWidth
+          size="small"
+          placeholder="Type a message..."
+          value={messageText}
+          onChange={(e) => setMessageText(e.target.value)}
+          disabled={isSending}
+          sx={{
+            bgcolor: "transparent",
+            borderRadius: 20,
+            mx: 1,
+            '& .MuiInputBase-root': {
+              bgcolor: "transparent",
+              color: theme.palette.text.primary,
+              fontSize: { xs: "1rem", sm: "1.1rem" },
+              fontWeight: 400,
+              px: 1,
+            },
+            '& fieldset': { border: "none" },
+            '& input': { color: theme.palette.text.primary },
+          }}
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position="end">
+                <motion.div
+                  whileTap={{ scale: 0.85 }}
+                  whileHover={{ scale: 1.1 }}
+                  style={{ display: "flex", alignItems: "center" }}
+                >
                   <IconButton
                     onClick={handleSendMessage}
                     disabled={isSending || (!messageText.trim() && !mediaUrl)}
-                    sx={{ color: "#8515fe", p: 0.5 }}
+                    sx={{
+                      color: "#fff",
+                      bgcolor: theme.palette.primary.main,
+                      boxShadow: theme.shadows[2],
+                      ml: 1,
+                      transition: "background 0.2s, color 0.2s, box-shadow 0.2s",
+                      '&:hover': { bgcolor: theme.palette.primary.dark, color: '#fff', boxShadow: theme.shadows[4] },
+                      p: 1.2,
+                    }}
                     aria-label="Send message"
                   >
                     {isSending ? (
-                      <CircularProgress size={20} sx={{ color: "#8515fe" }} />
+                      <CircularProgress size={20} sx={{ color: "#fff" }} />
                     ) : (
-                      <IoSendSharp size={20} />
+                      <IoSendSharp size={22} />
                     )}
                   </IconButton>
-                </InputAdornment>
-              ),
-            }}
-          />
-        </form>
+                </motion.div>
+              </InputAdornment>
+            ),
+          }}
+        />
         <input
           type="file"
           hidden
@@ -318,11 +422,11 @@ const MessageInput = () => {
           type="file"
           hidden
           ref={docRef}
-          accept=".pdf,.doc,.docx,.txt"
+          accept="application/pdf,text/plain"
           onChange={handleImageChange}
         />
-      </Box>
-    </motion.div>
+      </Paper>
+    </Box>
   );
 };
 

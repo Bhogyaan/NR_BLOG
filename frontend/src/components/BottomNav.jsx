@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useRecoilValue } from "recoil";
 import userAtom from "../atoms/userAtom";
 import useShowToast from "../hooks/useShowToast";
+import { useTheme } from "@mui/material";
+import Logo from './Logo';
 
 // MUI Imports
 import {
@@ -33,6 +35,7 @@ const BottomNav = ({ onOpenCreatePost }) => {
   const location = useLocation();
   const user = useRecoilValue(userAtom);
   const showToast = useShowToast();
+  const theme = useTheme();
 
   // Simulate loading for demo purposes
   useEffect(() => {
@@ -74,6 +77,9 @@ const BottomNav = ({ onOpenCreatePost }) => {
     onOpenCreatePost();
   };
 
+  // If you want to show a logo in BottomNav, add this logic:
+  // const logoSrc = theme.palette.mode === 'dark' ? '/light-logo.svg' : '/dark-logo.svg';
+
   return (
     <Box
       sx={{
@@ -81,8 +87,8 @@ const BottomNav = ({ onOpenCreatePost }) => {
         bottom: 0,
         left: 0,
         right: 0,
-        bgcolor: "#080201",
-        color: "white",
+        bgcolor: theme.palette.background.default,
+        color: theme.palette.text.primary,
         py: 1.5,
         zIndex: 10,
         boxShadow: "0 -2px 15px rgba(0,0,0,0.3)",
@@ -98,7 +104,7 @@ const BottomNav = ({ onOpenCreatePost }) => {
               variant="circular"
               width={56}
               height={56}
-              sx={{ bgcolor: "#334155" }}
+              sx={{ bgcolor: "var(--color-bg-paper)" }}
             />
           ))}
         </AntdFlex>
@@ -111,10 +117,10 @@ const BottomNav = ({ onOpenCreatePost }) => {
               whileTap={{ scale: 0.9 }}
               onClick={() => navigate("/")}
               sx={{
-                color: isActive("/") ? "#8515fe" : "white",
-                "&:hover": { color: "#8515fe" },
+                color: isActive("/") ? "var(--color-accent)" : "var(--color-text)",
+                "&:hover": { color: "var(--color-accent)" },
                 borderRadius: "50%",
-                backgroundColor: isActive("/") ? "rgba(99, 102, 241, 0.1)" : "transparent",
+                backgroundColor: isActive("/") ? "var(--color-bg-paper)" : "transparent",
               }}
               aria-label="Home"
             >
@@ -129,10 +135,10 @@ const BottomNav = ({ onOpenCreatePost }) => {
               whileTap={{ scale: 0.9 }}
               onClick={handleCreatePostClick}
               sx={{
-                color: isActive("/create-post") ? "#8515fe" : "white",
-                "&:hover": { color: "#8515fe" },
+                color: isActive("/create-post") ? "var(--color-accent)" : "var(--color-text)",
+                "&:hover": { color: "var(--color-accent)" },
                 borderRadius: "50%",
-                backgroundColor: isActive("/create-post") ? "rgba(99, 102, 241, 0.1)" : "transparent",
+                backgroundColor: isActive("/create-post") ? "var(--color-bg-paper)" : "transparent",
               }}
               aria-label="Create Post"
             >
@@ -147,10 +153,10 @@ const BottomNav = ({ onOpenCreatePost }) => {
               whileTap={{ scale: 0.9 }}
               onClick={() => navigate("/search")}
               sx={{
-                color: isActive("/search") ? "#8515fe" : "white",
-                "&:hover": { color: "#8515fe" },
+                color: isActive("/search") ? "var(--color-accent)" : "var(--color-text)",
+                "&:hover": { color: "var(--color-accent)" },
                 borderRadius: "50%",
-                backgroundColor: isActive("/search") ? "rgba(99, 102, 241, 0.1)" : "transparent",
+                backgroundColor: isActive("/search") ? "var(--color-bg-paper)" : "transparent",
               }}
               aria-label="Search"
             >
@@ -170,7 +176,7 @@ const BottomNav = ({ onOpenCreatePost }) => {
               <Avatar
                 src={user?.profilePic}
                 alt={user?.username}
-                sx={{ width: 40, height: 40, border: "2px solid #8515fe" }}
+                sx={{ width: 40, height: 40, border: "2px solid var(--color-accent)" }}
               />
             </IconButton>
           </Tooltip>
@@ -182,10 +188,10 @@ const BottomNav = ({ onOpenCreatePost }) => {
               whileTap={{ scale: 0.9 }}
               onClick={() => navigate("/chat")}
               sx={{
-                color: isActive("/chat") ? "#8515fe" : "white",
-                "&:hover": { color: "#8515fe" },
+                color: isActive("/chat") ? "var(--color-accent)" : "var(--color-text)",
+                "&:hover": { color: "var(--color-accent)" },
                 borderRadius: "50%",
-                backgroundColor: isActive("/chat") ? "rgba(99, 102, 241, 0.1)" : "transparent",
+                backgroundColor: isActive("/chat") ? "var(--color-bg-paper)" : "transparent",
               }}
               aria-label="Chat"
             >
@@ -201,10 +207,10 @@ const BottomNav = ({ onOpenCreatePost }) => {
                 whileTap={{ scale: 0.9 }}
                 onClick={() => navigate("/settings")}
                 sx={{
-                  color: isActive("/settings") ? "#8515fe" : "white",
-                  "&:hover": { color: "#8515fe" },
+                  color: isActive("/settings") ? "var(--color-accent)" : "var(--color-text)",
+                  "&:hover": { color: "var(--color-accent)" },
                   borderRadius: "50%",
-                  backgroundColor: isActive("/settings") ? "rgba(99, 102, 241, 0.1)" : "transparent",
+                  backgroundColor: isActive("/settings") ? "var(--color-bg-paper)" : "transparent",
                 }}
                 aria-label="Settings"
               >

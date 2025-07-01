@@ -16,6 +16,7 @@ import { useSearchParams } from "react-router-dom";
 import { useRecoilValue } from "recoil";
 import userAtom from "../atoms/userAtom";
 import Post from "../components/Post";
+import { useTheme } from '@mui/material/styles';
 
 const SearchPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -23,6 +24,7 @@ const SearchPage = () => {
   const [loading, setLoading] = useState(false);
   const [searchParams] = useSearchParams();
   const user = useRecoilValue(userAtom);
+  const theme = useTheme();
 
   // Trigger search from query parameter on mount
   useEffect(() => {
@@ -85,7 +87,7 @@ const SearchPage = () => {
         </Typography>
 
         {!user && (
-          <Typography variant="body1" textAlign="center" color="text.secondary" sx={{ mb: 4 }}>
+          <Typography variant="body1" textAlign="center" color={theme.palette.text.secondary} sx={{ mb: 4 }}>
             Please log in to search posts.
           </Typography>
         )}
@@ -133,7 +135,7 @@ const SearchPage = () => {
         )}
 
         {!loading && searchQuery && searchResults.length === 0 && user && (
-          <Typography variant="body1" textAlign="center" color="text.secondary" sx={{ my: 4 }}>
+          <Typography variant="body1" textAlign="center" color={theme.palette.text.secondary} sx={{ my: 4 }}>
             No posts found for "{searchQuery}"
           </Typography>
         )}

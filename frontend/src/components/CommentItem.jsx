@@ -173,93 +173,79 @@ const CommentItem = ({
     <Box
       sx={{
         mt: 1,
-        p: 1.5,
-        bgcolor: "rgba(255, 255, 255, 0.05)",
-        borderRadius: 2,
-        border: "1px solid rgba(255, 255, 255, 0.1)",
-        position: "relative",
+        p: 1.2,
+        bgcolor: 'rgba(255,255,255,0.15)',
+        borderRadius: 3,
+        borderLeft: '4px solid #8515fe',
+        boxShadow: '0 4px 16px 0 rgba(31, 38, 135, 0.10)',
+        backdropFilter: 'blur(6px)',
+        WebkitBackdropFilter: 'blur(6px)',
+        position: 'relative',
+        transition: 'box-shadow 0.2s, transform 0.2s',
+        minHeight: 48,
+        mb: 1.5,
+        '&:hover': {
+          boxShadow: '0 8px 24px 0 rgba(133, 21, 254, 0.12)',
+          transform: 'translateY(-1px) scale(1.01)',
+        },
       }}
     >
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
-          <Avatar
-            src={commentUser.profilePic}
-            alt={commentUser.username}
-            sx={{ width: { xs: 32, sm: 36 }, height: { xs: 32, sm: 36 } }}
-          />
-          <Typography variant="caption" sx={{ fontWeight: "bold", color: "#000000" }}>
-            {commentUser.username}
-          </Typography>
-        </Box>
-
+      {/* First row: Avatar, Username, Timestamp */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
+        <Avatar
+          src={commentUser.profilePic}
+          alt={commentUser.username}
+          sx={{
+            width: 28,
+            height: 28,
+            border: '1.5px solid #8515fe',
+            boxShadow: '0 1px 4px rgba(133, 21, 254, 0.08)',
+          }}
+        />
+        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#8515fe', fontFamily: 'Poppins, sans-serif', fontSize: '0.92rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 100 }}>
+          {commentUser.username}
+        </Typography>
         {isValidDate && (
           <Typography
             variant="caption"
-            sx={{ color: "#1C2526" }} // Dark gray for timestamp
+            sx={{ color: '#6b12cb', fontWeight: 400, fontFamily: 'Poppins, sans-serif', fontSize: '0.82rem', ml: 1, whiteSpace: 'nowrap' }}
           >
             {`${formatDistanceToNow(new Date(comment.createdAt))} ago${comment.isEdited ? " (Edited)" : ""}`}
           </Typography>
         )}
       </Box>
-
-      <Box sx={{ mt: 1 }}>
+      {/* Second row: Comment text */}
+      <Box sx={{ mt: 0.5, mb: 0.5 }}>
         {isEditing ? (
-          <Box>
-            <TextField
-              fullWidth
-              value={editedText}
-              onChange={(e) => setEditedText(e.target.value)}
-              multiline
-              sx={{
-                mb: 1,
-                bgcolor: "rgba(255, 255, 255, 0.3)",
-                "& .MuiOutlinedInput-root": {
-                  "& fieldset": { borderColor: "rgba(255, 255, 255, 0.3)" },
-                  "&:hover fieldset": { borderColor: "rgba(255, 255, 255, 0.5)" },
-                  "&.Mui-focused fieldset": { borderColor: "#1976D2" }, // Primary color for focus
-                  "& .MuiInputBase-input": { color: "#000000" }, // Black text in TextField
-                },
-              }}
-            />
-            <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>
-              <Button
-                size="small"
-                variant="contained"
-                onClick={handleEdit}
-                disabled={!editedText.trim() || isLoading}
-                sx={{
-                  bgcolor: "#1976D2", // Primary color
-                  "&:hover": { bgcolor: "#1565C0" },
-                }}
-              >
-                {isLoading ? "Saving..." : "Save"}
-              </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => setIsEditing(false)}
-                disabled={isLoading}
-                sx={{
-                  borderColor: "rgba(255, 255, 255, 0.3)",
-                  color: "#000000", // Black text for button
-                  "&:hover": { borderColor: "rgba(255, 255, 255, 0.5)", bgcolor: "rgba(255, 255, 255, 0.1)" },
-                }}
-              >
-                Cancel
-              </Button>
-            </Box>
-          </Box>
+          <TextField
+            fullWidth
+            value={editedText}
+            onChange={(e) => setEditedText(e.target.value)}
+            multiline={false}
+            sx={{
+              bgcolor: 'rgba(255,255,255,0.4)',
+              borderRadius: 1,
+              '& .MuiOutlinedInput-root': {
+                '& fieldset': { borderColor: '#8515fe' },
+                '&:hover fieldset': { borderColor: '#6b12cb' },
+                '&.Mui-focused fieldset': { borderColor: '#8515fe' },
+                '& .MuiInputBase-input': { color: '#1C2526', fontSize: '0.98rem', p: 0.5 },
+              },
+              minWidth: 120,
+              maxWidth: 220,
+            }}
+          />
         ) : (
           <Typography
             variant="body2"
-            sx={{ wordBreak: "break-word", color: "#000000" }} // Black text for comment
+            sx={{ wordBreak: 'break-word', color: '#1C2526', fontFamily: 'Poppins, sans-serif', fontSize: '0.98rem', lineHeight: 1.4 }}
           >
             {comment.text}
           </Typography>
         )}
       </Box>
-
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 1 }}>
+      {/* Third row: Like, Edit, Delete */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
         <LikeButton
           count={likeCount}
           onLike={handleLike}
@@ -267,15 +253,22 @@ const CommentItem = ({
           disabled={!currentUser || isLoading}
         />
         {currentUser && (
-          <Box sx={{ display: "flex", gap: 1 }}>
+          <Box sx={{ display: 'flex', gap: 0.5, ml: 1 }}>
             {canEdit && (
               <IconButton
                 size="small"
                 onClick={() => setIsEditing(true)}
                 disabled={isLoading}
-                sx={{ color: "#1976D2" }} // Primary color for edit icon
+                sx={{
+                  color: '#6b12cb',
+                  bgcolor: 'rgba(133, 21, 254, 0.08)',
+                  borderRadius: 2,
+                  p: 0.5,
+                  transition: 'background 0.2s',
+                  '&:hover': { bgcolor: '#8515fe', color: '#fff' },
+                }}
               >
-                <EditIcon sx={{ fontSize: { xs: 16, sm: 18 } }} />
+                <EditIcon sx={{ fontSize: 16 }} />
               </IconButton>
             )}
             {canDelete && (
@@ -283,9 +276,16 @@ const CommentItem = ({
                 size="small"
                 onClick={handleDelete}
                 disabled={isLoading}
-                sx={{ color: "#D32F2F" }} // Error color for delete icon
+                sx={{
+                  color: '#fff',
+                  bgcolor: '#ED4956',
+                  borderRadius: 2,
+                  p: 0.5,
+                  transition: 'background 0.2s',
+                  '&:hover': { bgcolor: '#b71c1c' },
+                }}
               >
-                <DeleteForeverIcon sx={{ fontSize: { xs: 16, sm: 18 } }} />
+                <DeleteForeverIcon sx={{ fontSize: 16 }} />
               </IconButton>
             )}
           </Box>

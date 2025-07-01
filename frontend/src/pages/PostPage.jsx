@@ -27,6 +27,8 @@ import {
   Comment,
   Bookmark,
   Share,
+  Send,
+  Close as CloseIcon,
 } from "@mui/icons-material";
 import { message } from "antd";
 import { debounce } from "lodash";
@@ -36,6 +38,7 @@ import userAtom from "../atoms/userAtom";
 import postsAtom from "../atoms/postsAtom";
 import { SocketContext } from "../context/SocketContext";
 import CommentItem from "../components/CommentItem";
+import { useTheme } from '@mui/material/styles';
 
 const PostPage = () => {
   const { user, loading } = useGetUserProfile();
@@ -51,6 +54,7 @@ const PostPage = () => {
   const commentInputRef = useRef(null);
   const dialogCommentInputRef = useRef(null);
   const { socket } = useContext(SocketContext);
+  const theme = useTheme();
 
   const currentPost = posts.posts?.find((p) => p._id === pid);
 
@@ -410,14 +414,14 @@ const PostPage = () => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
-      style={{ backgroundColor: "#F5F5F5", minHeight: "100vh", padding: { xs: "8px", sm: "16px" } }}
+      style={{ backgroundColor: theme.palette.background.default, minHeight: "100vh", padding: { xs: "8px", sm: "16px" } }}
     >
       <Paper
         elevation={3}
         sx={{
           maxWidth: 700,
           mx: "auto",
-          bgcolor: "white",
+          bgcolor: theme.palette.background.paper,
           borderRadius: "12px",
           boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
           overflow: "hidden",
@@ -546,29 +550,44 @@ const PostPage = () => {
                 onKeyPress={handleKeyPress}
                 size="small"
                 sx={{
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: "24px",
-                    bgcolor: "#F5F5F5",
-                    "& fieldset": { border: "1px solid #E0E0E0" },
-                    "&:hover fieldset": { borderColor: "#B0B0B0" },
-                    "&.Mui-focused fieldset": { borderColor: "#1976D2" },
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '24px',
+                    bgcolor: 'rgba(255,255,255,0.18)',
+                    boxShadow: '0 2px 8px rgba(133, 21, 254, 0.08)',
+                    backdropFilter: 'blur(6px)',
+                    WebkitBackdropFilter: 'blur(6px)',
+                    border: '1.5px solid #eee',
+                    transition: 'border-color 0.2s, box-shadow 0.2s',
+                    '& fieldset': { border: '1.5px solid #eee' },
+                    '&:hover fieldset': { borderColor: '#8515fe' },
+                    '&.Mui-focused fieldset': { borderColor: '#8515fe', boxShadow: '0 0 0 2px rgba(133,21,254,0.08)' },
                   },
-                  "& .MuiInputBase-input": { fontSize: "15px", py: 1.2 },
+                  '& .MuiInputBase-input': { fontSize: '15px', py: 1.2 },
                 }}
               />
               <Button
                 onClick={handleAddComment}
                 disabled={!newComment.trim() || isCommenting}
                 sx={{
-                  fontSize: "14px",
-                  color: "#1976D2",
-                  fontWeight: "600",
-                  borderRadius: "20",
-                  px: 2,
-                  "&:hover": { bgcolor: "#E3F2FD" },
+                  fontSize: '14px',
+                  color: '#fff',
+                  fontWeight: '600',
+                  borderRadius: '24px',
+                  px: 2.5,
+                  bgcolor: '#8515fe',
+                  boxShadow: '0 2px 8px rgba(133, 21, 254, 0.10)',
+                  transition: 'background 0.2s',
+                  '&:hover': { bgcolor: '#6b12cb' },
+                  minWidth: 0,
+                  width: 40,
+                  height: 40,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  p: 0,
                 }}
               >
-                {isCommenting ? "Posting..." : "Post"}
+                <Send />
               </Button>
             </Box>
           )}
@@ -621,39 +640,74 @@ const PostPage = () => {
             multiline
             rows={4}
             sx={{
-              "& .MuiOutlinedInput-root": {
-                "& fieldset": { borderColor: "rgba(0,0,0,0.1)" },
-                "&:hover fieldset": { borderColor: "rgba(0,0,0,0.2)" },
-                "&.Mui-focused fieldset": { borderColor: "#1976D2" },
-                "& .MuiInputBase-input": { fontSize: "15px" },
-                mt: 1,
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '18px',
+                bgcolor: 'rgba(255,255,255,0.18)',
+                boxShadow: '0 2px 8px rgba(133, 21, 254, 0.08)',
+                backdropFilter: 'blur(6px)',
+                WebkitBackdropFilter: 'blur(6px)',
+                border: '1.5px solid #eee',
+                transition: 'border-color 0.2s, box-shadow 0.2s',
+                '& fieldset': { border: '1.5px solid #eee' },
+                '&:hover fieldset': { borderColor: '#8515fe' },
+                '&.Mui-focused fieldset': { borderColor: '#8515fe', boxShadow: '0 0 0 2px rgba(133,21,254,0.08)' },
               },
+              '& .MuiInputBase-input': { fontSize: '15px' },
+              mt: 1,
             }}
           />
         </DialogContent>
         <DialogActions>
           <Button
-            variant="text"
+            variant="outlined"
             onClick={() => {
               setOpenCommentDialog(false);
               setDialogComment("");
             }}
-            sx={{ fontSize: "14px", color: "text.secondary" }}
+            sx={{
+              fontSize: '14px',
+              color: '#8515fe',
+              borderColor: '#8515fe',
+              borderRadius: '18px',
+              px: 2,
+              fontWeight: 600,
+              transition: 'background 0.2s, color 0.2s',
+              '&:hover': { bgcolor: 'rgba(133,21,254,0.08)', color: '#6b12cb', borderColor: '#6b12cb' },
+              minWidth: 0,
+              width: 40,
+              height: 40,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              p: 0,
+            }}
           >
-            Cancel
+            <CloseIcon sx={{ color: '#fff' }} />
           </Button>
           <Button
             onClick={handleAddComment}
             variant="contained"
             disabled={!dialogComment.trim() || isCommenting}
             sx={{
-              fontSize: "14px",
-              borderRadius: "8px",
-              bgcolor: "#1976D2",
-              "&:hover": { bgcolor: "#1565C0" },
+              fontSize: '14px',
+              borderRadius: '18px',
+              bgcolor: '#8515fe',
+              color: '#fff',
+              fontWeight: 600,
+              px: 2.5,
+              boxShadow: '0 2px 8px rgba(133, 21, 254, 0.10)',
+              transition: 'background 0.2s',
+              '&:hover': { bgcolor: '#6b12cb' },
+              minWidth: 0,
+              width: 40,
+              height: 40,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              p: 0,
             }}
           >
-            {isCommenting ? "Posting..." : "Post"}
+            <Send />
           </Button>
         </DialogActions>
       </Dialog>

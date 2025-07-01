@@ -7,11 +7,12 @@ import { loadSlim } from '@tsparticles/slim';
 import LoginCard from '../components/LoginCard';
 import SignupCard from '../components/SignupCard';
 import authScreenAtom from '../atoms/authAtom';
+import { useTheme as useMuiTheme } from '@mui/material/styles';
 
 const AuthPage = () => {
   const authScreenState = useRecoilValue(authScreenAtom);
   const setAuthScreen = useSetRecoilState(authScreenAtom);
-  const theme = useTheme();
+  const theme = useMuiTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   useEffect(() => {
